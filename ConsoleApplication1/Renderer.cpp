@@ -55,11 +55,8 @@ bool Renderer::isDeviceSuitable(vk::PhysicalDevice device){
 
 	QueueFamilyIndices indices = findQueueFamilies(device);
 
-	if (indices.isComplete()) {
-
 		return deviceProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu &&
-			deviceFeatures.geometryShader;
-	}
+			deviceFeatures.geometryShader && indices.isComplete();
 }
 
 Renderer::QueueFamilyIndices Renderer::findQueueFamilies(vk::PhysicalDevice device){
