@@ -1,6 +1,4 @@
-#ifndef RENDERER_H
-#define RENDERER_H
-
+#pragma once
 #include <iostream>
 #include <set>
 #include <stdexcept>
@@ -11,6 +9,9 @@
 #include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 
+VkResult CreateDebugUtilsMessengerEXT(vk::Instance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pCallback);
+
+void DestroyDebugUtilsMessengerEXT(vk::Instance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator);
 
 class Renderer{
 private:
@@ -21,6 +22,7 @@ private:
 
 	//validation layers
 	std::vector<const char*> validationLayers{ "VK_LAYER_KHRONOS_validation" };
+	VkDebugUtilsMessengerEXT callback;
 
 #ifdef NDEBUG
 	const bool  enableValidationLayers{ false };
@@ -31,15 +33,21 @@ private:
 	struct QueueFamilyIndices {
 		
 		std::optional<uint32_t> graphicsFamily;
+		std::optional<uint32_t> presentFamily;
 
 		bool isComplete() {
-			return graphicsFamily.has_value();
+			return graphicsFamily.has_value() && presentFamily.has_value();
 		}
 	};
 
 	//member var for vulkan objects
 	vk::Instance instance{};
 	vk::PhysicalDevice physicalDevice{};
+	vk::Device device{};
+	vk::Queue graphicsQueue;
+	vk::Queue presentQueue;
+	vk::SurfaceKHR surface;
+	
 public:
 	void run();
 
@@ -58,9 +66,18 @@ private:
 	//vulkan val layers fucntions
 	bool checkValidationLayerSupport();
 	std::vector<const char*> getRequiredExtensions();
+	void setupDebugCallback();
 
 	//functions to init vulkan objects
 	void createInstance();
+	void createLogicalDevice();
+	void createSurface();
+
+	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
+		std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+
+		return VK_FALSE;
+	}
 };
-#endif
+
 
