@@ -109,10 +109,9 @@ void Renderer::mainLoop(){
 }
 
 void Renderer::cleanup(){
-
-	//instance.destroySurfaceKHR(surface);
-	//device.destroy();
-
+	
+	device.destroy();
+	instance.destroySurfaceKHR(surface);
 	if (enableValidationLayers) {
 		DestroyDebugUtilsMessengerEXT(instance, callback, nullptr);
 	}
@@ -195,9 +194,9 @@ void Renderer::createInstance(){
 	vk::ApplicationInfo appInfo{};
 	appInfo.sType = vk::StructureType::eApplicationInfo;
 	appInfo.pApplicationName = "hello Triangle";
-	appInfo.applicationVersion = 1.0;
+	appInfo.applicationVersion = 1;
 	appInfo.pEngineName = "no Engine";
-	appInfo.engineVersion = 1.0;
+	appInfo.engineVersion = 1;
 	appInfo.apiVersion = VK_API_VERSION_1_0;
 
 	vk::InstanceCreateInfo createInfo{};
@@ -281,7 +280,14 @@ void Renderer::createSurface(){
 	surface = vk::SurfaceKHR{ surf };
 }
 
-VkResult CreateDebugUtilsMessengerEXT(vk::Instance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pCallback){
+VkBool32 VKAPI_CALL Renderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){
+	
+	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+
+	return VK_FALSE;
+}
+
+VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pCallback){
 	
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 	if (func != nullptr) {
@@ -293,7 +299,7 @@ VkResult CreateDebugUtilsMessengerEXT(vk::Instance instance, const VkDebugUtilsM
 	
 }
 
-void DestroyDebugUtilsMessengerEXT(vk::Instance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator){
+void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator){
 
 	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 	if (func != nullptr) {

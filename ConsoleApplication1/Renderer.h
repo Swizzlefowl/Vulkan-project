@@ -1,20 +1,29 @@
-#pragma once
+#ifndef RENDERER
+#define RENDERER
+#include <optional>
 #include <iostream>
 #include <set>
 #include <stdexcept>
 #include <cstdlib>
 #include <vector>
 #include <cstring>
-#include <optional>
 #include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 
-VkResult CreateDebugUtilsMessengerEXT(vk::Instance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pCallback);
 
-void DestroyDebugUtilsMessengerEXT(vk::Instance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator);
+VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pCallback);
+
+void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator);
 
 class Renderer{
 private:
+
+#ifdef NDEBUG
+	const bool  enableValidationLayers{ false };
+#else
+	const bool  enableValidationLayers{ true };
+#endif
+
 	//member var for window 
 	const uint32_t WIDTH{ 800 };
 	const uint32_t HEIGHT{ 600 };
@@ -23,12 +32,6 @@ private:
 	//validation layers
 	std::vector<const char*> validationLayers{ "VK_LAYER_KHRONOS_validation" };
 	VkDebugUtilsMessengerEXT callback;
-
-#ifdef NDEBUG
-	const bool  enableValidationLayers{ false };
-#else
-	const bool  enableValidationLayers{ false };
-#endif // NDEBUG
 
 	struct QueueFamilyIndices {
 		
@@ -73,11 +76,8 @@ private:
 	void createLogicalDevice();
 	void createSurface();
 
-	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-		std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-
-		return VK_FALSE;
-	}
+	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 };
+#endif
 
 
