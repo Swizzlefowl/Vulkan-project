@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <vector>
 #include <cstring>
+#include <limits>
+#include <algorithm>
 #include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 
@@ -31,6 +33,7 @@ private:
 
 	//validation layers
 	std::vector<const char*> validationLayers{ "VK_LAYER_KHRONOS_validation" };
+	const std::vector <const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 	VkDebugUtilsMessengerEXT callback;
 
 	struct QueueFamilyIndices {
@@ -43,6 +46,13 @@ private:
 		}
 	};
 
+	struct SwapChainSupportDetails {
+
+		vk::SurfaceCapabilitiesKHR capabilities;
+		std::vector <vk::SurfaceFormatKHR> formats;
+		std::vector <vk::PresentModeKHR> presentModes;
+	};
+
 	//member var for vulkan objects
 	vk::Instance instance{};
 	vk::PhysicalDevice physicalDevice{};
@@ -50,7 +60,11 @@ private:
 	vk::Queue graphicsQueue;
 	vk::Queue presentQueue;
 	vk::SurfaceKHR surface;
-	
+	vk::SwapchainKHR swapChain;
+	std::vector<vk::Image> swapChainImages;
+	vk::SurfaceFormatKHR swapChainImagesFormat;
+	vk::Extent2D swapChainExtent;
+
 public:
 	void run();
 
@@ -60,6 +74,7 @@ private:
 	void initVulkan();
 
 	void pickPhysicalDevice();
+	bool checkDeviceExtensionSupport(vk::PhysicalDevice device);
 	bool isDeviceSuitable(vk::PhysicalDevice device);
 	QueueFamilyIndices findQueueFamilies(vk::PhysicalDevice device);
 
@@ -75,6 +90,13 @@ private:
 	void createInstance();
 	void createLogicalDevice();
 	void createSurface();
+
+	//functions for swapChains
+	SwapChainSupportDetails querySwapChainSupport(vk::PhysicalDevice device);
+	vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector <vk::SurfaceFormatKHR> availableFormats);
+	vk::PresentModeKHR chooseSwapPresentMode(const std::vector <vk::PresentModeKHR> availavlePresentModes);
+	vk::Extent2D chooseSwapExtend(const vk::SurfaceCapabilitiesKHR& capabilities);
+	void createSwapChain();
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 };
