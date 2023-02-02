@@ -25,6 +25,7 @@ void Renderer::initVulkan(){
 	createLogicalDevice();
 	createSwapChain();
 	createImageViews();
+	createGraphicsPipeline();
 }
 
 void Renderer::pickPhysicalDevice(){
@@ -447,6 +448,63 @@ void Renderer::createImageViews(){
 			throw std::runtime_error("failed to create image views!");
 		}
 	}
+}
+
+void Renderer::createGraphicsPipeline(){
+
+	auto vertShaderCode{ readFile("shaders/vert.spv") };
+	auto fragShaderCode{ readFile("shaders/frag.spv") };
+
+	vk::ShaderModule vertShaderModule{ createShadermodule(vertShaderCode) };
+	vk::ShaderModule fragShaderModule{ createShadermodule(fragShaderCode) };
+
+	vk::PipelineShaderStageCreateInfo vertShaderStageInfo{};
+	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+	vertShaderStageInfo.module = vertShaderModule;
+	vertShaderStageInfo.pName = "main";
+
+	vk::PipelineShaderStageCreateInfo fragShaderStageInfo{};
+	vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+	vertShaderStageInfo.module = fragShaderModule;
+	vertShaderStageInfo.pName = "main";
+
+	vk::PipelineShaderStageCreateInfo shaderStagesInfo[]{
+		vertShaderStageInfo, fragShaderStageInfo };
+
+	device.destroyShaderModule(vertShaderModule);
+	device.destroyShaderModule(fragShaderModule);
+}
+
+std::vector<char> Renderer::readFile(const std::string& fileName){
+
+	std::ifstream file{ fileName, std::ios::ate | std::ios::binary };
+
+	if (!file.is_open()) {
+
+		throw::std::runtime_error("could not open file!");
+	}
+	size_t fileSize{ static_cast<size_t> (file.tellg()) };
+	std::vector<char> buffer(fileSize);
+
+	file.seekg(0);
+	file.read(buffer.data(), fileSize);
+	file.close();
+
+	return buffer;
+}
+
+vk::ShaderModule Renderer::createShadermodule(const std::vector<char>& shaderCode){
+
+	vk::ShaderModuleCreateInfo createInfo{};
+	createInfo.codeSize = shaderCode.size();
+	createInfo.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
+	vk::ShaderModule shaderModule;
+
+	if (device.createShaderModule(&createInfo, nullptr, &shaderModule) != vk::Result::eSuccess) {
+
+		throw std::runtime_error("failed to create shader module!");
+	}
+	return shaderModule;
 }
 
 VkBool32 VKAPI_CALL Renderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){

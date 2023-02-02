@@ -9,6 +9,8 @@
 #include <cstring>
 #include <limits>
 #include <algorithm>
+#include <fstream>
+#include <string>
 #include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 
@@ -98,8 +100,12 @@ private:
 	vk::PresentModeKHR chooseSwapPresentMode(const std::vector <vk::PresentModeKHR> availavlePresentModes);
 	vk::Extent2D chooseSwapExtend(const vk::SurfaceCapabilitiesKHR& capabilities);
 	void createSwapChain();
-	
 	void createImageViews();
+
+	//graphics pipeline functions
+	void createGraphicsPipeline();
+	static std::vector<char> readFile(const std::string& fileName);
+	vk::ShaderModule createShadermodule(const std::vector<char>& shaderCode);
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 };
