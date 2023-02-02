@@ -24,6 +24,7 @@ void Renderer::initVulkan(){
     pickPhysicalDevice();
 	createLogicalDevice();
 	createSwapChain();
+	createImageViews();
 }
 
 void Renderer::pickPhysicalDevice(){
@@ -124,12 +125,15 @@ void Renderer::mainLoop(){
 void Renderer::cleanup(){
 	
 	device.destroySwapchainKHR(swapChain);
+	for (auto& imageView : swapChainImageViews) {
+
+		device.destroyImageView(imageView);
+	}
 	device.destroy();
 	instance.destroySurfaceKHR(surface);
 	if (enableValidationLayers) {
 		DestroyDebugUtilsMessengerEXT(instance, callback, nullptr);
 	}
-
 	instance.destroy();
 	glfwDestroyWindow(window);
 	glfwTerminate();
@@ -183,8 +187,12 @@ void Renderer::setupDebugCallback(){
 
 	auto createInfo = vk::DebugUtilsMessengerCreateInfoEXT(
 		vk::DebugUtilsMessengerCreateFlagsEXT(),
-		vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
-		vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+		vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | 
+		vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | 
+		vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+		vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral 
+		| vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation | 
+		vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
 		debugCallback,
 		nullptr
 	);
@@ -194,7 +202,9 @@ void Renderer::setupDebugCallback(){
 	//instance->createDebugUtilsMessengerEXTUnique(createInfo);
 
 	// NOTE: reinterpret_cast is also used by vulkan.hpp internally for all these structs
-	if (CreateDebugUtilsMessengerEXT(instance, reinterpret_cast<const VkDebugUtilsMessengerCreateInfoEXT*>(&createInfo), nullptr, &callback) != VK_SUCCESS) {
+	if (CreateDebugUtilsMessengerEXT(
+		instance, reinterpret_cast<const VkDebugUtilsMessengerCreateInfoEXT*>(&createInfo), 
+		nullptr, &callback) != VK_SUCCESS) {
 		throw std::runtime_error("failed to set up debug callback!");
 	}
 }
@@ -206,7 +216,6 @@ void Renderer::createInstance(){
 	}
 
 	vk::ApplicationInfo appInfo{};
-	appInfo.sType = vk::StructureType::eApplicationInfo;
 	appInfo.pApplicationName = "hello Triangle";
 	appInfo.applicationVersion = 1;
 	appInfo.pEngineName = "no Engine";
@@ -214,7 +223,6 @@ void Renderer::createInstance(){
 	appInfo.apiVersion = VK_API_VERSION_1_0;
 
 	vk::InstanceCreateInfo createInfo{};
-	createInfo.sType = vk::StructureType::eInstanceCreateInfo;
 	createInfo.pApplicationInfo = &appInfo;
 
 	uint32_t glfwExtensionCount{ 0 };
@@ -252,7 +260,6 @@ void Renderer::createLogicalDevice(){
 
 	for (uint32_t queueFamily : uniqueQueueFamilies) {
 		vk::DeviceQueueCreateInfo queueCreateInfo{};
-		queueCreateInfo.sType = vk::StructureType::eDeviceQueueCreateInfo;
 		queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
 		queueCreateInfo.queueCount = 1;
 		queueCreateInfo.pQueuePriorities = &queuePriority;
@@ -262,7 +269,6 @@ void Renderer::createLogicalDevice(){
 	vk::PhysicalDeviceFeatures deviceFeatures{};
 
 	vk::DeviceCreateInfo createInfo{};
-	createInfo.sType = vk::StructureType::eDeviceCreateInfo;
 	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 	createInfo.pQueueCreateInfos = queueCreateInfos.data();
 	createInfo.pEnabledFeatures = &deviceFeatures;
@@ -371,7 +377,6 @@ void Renderer::createSwapChain(){
 	}
 
 	vk::SwapchainCreateInfoKHR createInfo{};
-	createInfo.sType = vk::StructureType::eSwapchainCreateInfoKHR;
 	createInfo.surface = surface;
 	createInfo.minImageCount = imageCount;
 	createInfo.imageFormat = surfaceFormat.format;
@@ -409,8 +414,39 @@ void Renderer::createSwapChain(){
 	swapChainImages = device.getSwapchainImagesKHR(swapChain);
 	std::cout << swapChainImages.size()<<'\n';
 
-	swapChainImagesFormat = surfaceFormat;
+	swapChainImagesFormat = surfaceFormat.format;
 	swapChainExtent = extent;
+}
+
+void Renderer::createImageViews(){
+
+	swapChainImageViews.resize(swapChainImages.size());
+
+	for (size_t i{ 0 }; i < swapChainImages.size(); i++) {
+
+		vk::ImageViewCreateInfo createInfo{};
+		createInfo.image = swapChainImages[i];
+		createInfo.viewType = vk::ImageViewType::e2D;
+		createInfo.format = swapChainImagesFormat;
+
+		vk::ComponentMapping mappings{ 
+			vk::ComponentSwizzle::eIdentity,
+			vk::ComponentSwizzle::eIdentity,
+			vk::ComponentSwizzle::eIdentity,
+			vk::ComponentSwizzle::eIdentity
+		};
+		createInfo.components = mappings;
+
+		// base	MipmapLevel = 0, levelcount = 1, baseArrayLayer = 0, layerCount = 1
+		vk::ImageSubresourceRange imageSubResource{ 
+			vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
+		};
+		createInfo.subresourceRange = imageSubResource;
+		if (device.createImageView(&createInfo, nullptr, &swapChainImageViews[i])
+			!= vk::Result::eSuccess) {
+			throw std::runtime_error("failed to create image views!");
+		}
+	}
 }
 
 VkBool32 VKAPI_CALL Renderer::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData){

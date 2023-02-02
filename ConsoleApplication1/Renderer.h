@@ -62,8 +62,9 @@ private:
 	vk::SurfaceKHR surface;
 	vk::SwapchainKHR swapChain;
 	std::vector<vk::Image> swapChainImages;
-	vk::SurfaceFormatKHR swapChainImagesFormat;
+	vk::Format swapChainImagesFormat;
 	vk::Extent2D swapChainExtent;
+	std::vector<vk::ImageView> swapChainImageViews;
 
 public:
 	void run();
@@ -97,6 +98,8 @@ private:
 	vk::PresentModeKHR chooseSwapPresentMode(const std::vector <vk::PresentModeKHR> availavlePresentModes);
 	vk::Extent2D chooseSwapExtend(const vk::SurfaceCapabilitiesKHR& capabilities);
 	void createSwapChain();
+	
+	void createImageViews();
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 };
