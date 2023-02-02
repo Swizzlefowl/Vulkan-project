@@ -1,16 +1,16 @@
 #include "Renderer.h"
 
 int main() {
-  Renderer app{};
+    Renderer app{};
 
-  try {
-    app.run();
-  }
+    try {
+        app.run();
+    }
 
-  catch (const std::exception &e) {
+    catch (const std::exception& e) {
 
-    std::cerr << e.what() << 'n';
-    return EXIT_FAILURE;
-  }
-  return EXIT_SUCCESS;
+        std::cerr << e.what() << 'n';
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
