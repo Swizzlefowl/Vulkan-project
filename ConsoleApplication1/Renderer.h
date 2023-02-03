@@ -60,8 +60,8 @@ class Renderer {
     };
 
     // member var for vulkan objects
-    vk::Instance instance{};
-    vk::PhysicalDevice physicalDevice{};
+    vk::Instance instance;
+    vk::PhysicalDevice physicalDevice;
     vk::Device device{};
     vk::Queue graphicsQueue;
     vk::Queue presentQueue;
@@ -71,6 +71,9 @@ class Renderer {
     vk::Format swapChainImagesFormat;
     vk::Extent2D swapChainExtent;
     std::vector<vk::ImageView> swapChainImageViews;
+    vk::RenderPass renderPass;
+    vk::PipelineLayout pipelineLayout;
+    vk::Pipeline graphicsPipeline;
 
   public:
     void run();
@@ -109,6 +112,7 @@ class Renderer {
     void createImageViews();
 
     // graphics pipeline functions
+    void createRenderPass();
     void createGraphicsPipeline();
     static std::vector<char> readFile(const std::string& fileName);
     vk::ShaderModule createShadermodule(const std::vector<char>& shaderCode);
