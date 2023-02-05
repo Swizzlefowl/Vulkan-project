@@ -74,6 +74,12 @@ class Renderer {
     vk::RenderPass renderPass;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline graphicsPipeline;
+    std::vector<vk::Framebuffer> swapChainFrameBuffers; 
+    vk::CommandPool commandPool;
+    vk::CommandBuffer commandBuffer;
+    vk::Semaphore imageAvailableSemaphore;
+    vk::Semaphore finishedRenderingSemaphore;
+    vk::Fence inFlightFence;
 
   public:
     void run();
@@ -110,12 +116,22 @@ class Renderer {
     vk::Extent2D chooseSwapExtend(const vk::SurfaceCapabilitiesKHR& capabilities);
     void createSwapChain();
     void createImageViews();
+    void createFrameBuffers();
 
     // graphics pipeline functions
     void createRenderPass();
     void createGraphicsPipeline();
     static std::vector<char> readFile(const std::string& fileName);
     vk::ShaderModule createShadermodule(const std::vector<char>& shaderCode);
+
+    //functions for command buffers
+    void createCommandPool();
+    void createCommandBuffer();
+    void recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t imageIndex);
+
+    //functions for drawing frames
+    void drawFrame();
+    void createSyncObjects();
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL
     debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
