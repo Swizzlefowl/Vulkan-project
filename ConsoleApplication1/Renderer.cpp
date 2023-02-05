@@ -1,7 +1,6 @@
 #include "Renderer.h"
 
 void Renderer::run() {
-
     initWindow();
     initVulkan();
     mainLoop();
@@ -9,7 +8,6 @@ void Renderer::run() {
 }
 
 void Renderer::initWindow() {
-
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
@@ -17,7 +15,6 @@ void Renderer::initWindow() {
 }
 
 void Renderer::initVulkan() {
-
     createInstance();
     setupDebugCallback();
     createSurface();
@@ -34,7 +31,6 @@ void Renderer::initVulkan() {
 }
 
 void Renderer::pickPhysicalDevice() {
-
     uint32_t deviceCount{0};
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
@@ -56,7 +52,6 @@ void Renderer::pickPhysicalDevice() {
 }
 
 bool Renderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
-
     std::vector<vk::ExtensionProperties> availableExtensions{
         device.enumerateDeviceExtensionProperties()};
 
@@ -73,7 +68,6 @@ bool Renderer::checkDeviceExtensionSupport(vk::PhysicalDevice device) {
 }
 
 bool Renderer::isDeviceSuitable(vk::PhysicalDevice device) {
-
     vk::PhysicalDeviceProperties deviceProperties{device.getProperties()};
     vk::PhysicalDeviceFeatures deviceFeatures{device.getFeatures()};
 
@@ -92,7 +86,6 @@ bool Renderer::isDeviceSuitable(vk::PhysicalDevice device) {
 
 Renderer::QueueFamilyIndices
 Renderer::findQueueFamilies(vk::PhysicalDevice device) {
-
     QueueFamilyIndices indices;
 
     std::vector<vk::QueueFamilyProperties> queueFamilies(
@@ -116,7 +109,6 @@ Renderer::findQueueFamilies(vk::PhysicalDevice device) {
 }
 
 void Renderer::mainLoop() {
-
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         drawFrame();
@@ -125,7 +117,6 @@ void Renderer::mainLoop() {
 }
 
 void Renderer::cleanup() {
-
     device.destroyCommandPool(commandPool);
     device.destroyPipeline(graphicsPipeline);
     device.destroyPipelineLayout(pipelineLayout);
@@ -149,11 +140,9 @@ void Renderer::cleanup() {
     instance.destroy();
     glfwDestroyWindow(window);
     glfwTerminate();
-    
 }
 
 bool Renderer::checkValidationLayerSupport() {
-
     uint32_t layerCount{};
 
     vk::enumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -178,7 +167,6 @@ bool Renderer::checkValidationLayerSupport() {
 }
 
 std::vector<const char*> Renderer::getRequiredExtensions() {
-
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions;
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -193,7 +181,6 @@ std::vector<const char*> Renderer::getRequiredExtensions() {
 }
 
 void Renderer::setupDebugCallback() {
-
     if (!enableValidationLayers)
         return;
 
@@ -219,7 +206,6 @@ void Renderer::setupDebugCallback() {
 }
 
 void Renderer::createInstance() {
-
     if (enableValidationLayers && !checkValidationLayerSupport())
         throw std::runtime_error("validation layers requested, but not available!");
 
@@ -254,7 +240,6 @@ void Renderer::createInstance() {
 }
 
 void Renderer::createLogicalDevice() {
-
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
@@ -303,7 +288,6 @@ void Renderer::createSurface() {
 
 Renderer::SwapChainSupportDetails
 Renderer::querySwapChainSupport(vk::PhysicalDevice device) {
-
     SwapChainSupportDetails details;
     details.capabilities = device.getSurfaceCapabilitiesKHR(surface);
     details.formats = device.getSurfaceFormatsKHR(surface);
@@ -334,7 +318,6 @@ vk::PresentModeKHR Renderer::chooseSwapPresentMode(
 
 vk::Extent2D
 Renderer::chooseSwapExtend(const vk::SurfaceCapabilitiesKHR& capabilities) {
-
     if (capabilities.currentExtent != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
     } else {
@@ -355,7 +338,6 @@ Renderer::chooseSwapExtend(const vk::SurfaceCapabilitiesKHR& capabilities) {
 }
 
 void Renderer::createSwapChain() {
-
     SwapChainSupportDetails swapChainSupport{
         querySwapChainSupport(physicalDevice)};
     vk::SurfaceFormatKHR surfaceFormat{
@@ -411,7 +393,6 @@ void Renderer::createSwapChain() {
 }
 
 void Renderer::createImageViews() {
-
     swapChainImageViews.resize(swapChainImages.size());
 
     for (size_t i{0}; i < swapChainImages.size(); i++) {
@@ -438,7 +419,6 @@ void Renderer::createImageViews() {
 }
 
 void Renderer::createFrameBuffers() {
-
     swapChainFrameBuffers.resize(swapChainImageViews.size());
 
     size_t i{0};
@@ -454,12 +434,10 @@ void Renderer::createFrameBuffers() {
         if (device.createFramebuffer(&frameBufferInfo, nullptr, &swapChainFrameBuffers[i]) != vk::Result::eSuccess)
             throw std::runtime_error("failed to create a framebuffer!");
         i++;
-        
     }
 }
 
 void Renderer::createGraphicsPipeline() {
-
     auto vertShaderCode{readFile("vertex.spv")};
     auto fragShaderCode{readFile("fragment.spv")};
 
@@ -572,7 +550,6 @@ void Renderer::createGraphicsPipeline() {
 }
 
 void Renderer::createRenderPass() {
-
     vk::AttachmentDescription colorAttachment{};
     colorAttachment.format = swapChainImagesFormat;
     colorAttachment.samples = vk::SampleCountFlagBits::e1;
@@ -613,7 +590,6 @@ void Renderer::createRenderPass() {
 }
 
 std::vector<char> Renderer::readFile(const std::string& fileName) {
-
     std::ifstream file{fileName, std::ios::ate | std::ios::binary};
 
     if (!file.is_open())
@@ -631,7 +607,6 @@ std::vector<char> Renderer::readFile(const std::string& fileName) {
 
 vk::ShaderModule
 Renderer::createShadermodule(const std::vector<char>& shaderCode) {
-
     vk::ShaderModuleCreateInfo createInfo{};
     createInfo.codeSize = shaderCode.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
@@ -644,9 +619,8 @@ Renderer::createShadermodule(const std::vector<char>& shaderCode) {
 }
 
 void Renderer::createCommandPool() {
-
     QueueFamilyIndices queueFamilyIndices{findQueueFamilies(physicalDevice)};
-    
+
     vk::CommandPoolCreateInfo poolInfo{};
     poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
@@ -656,7 +630,6 @@ void Renderer::createCommandPool() {
 }
 
 void Renderer::createCommandBuffer() {
-
     vk::CommandBufferAllocateInfo allocateInfo{};
     allocateInfo.commandPool = commandPool;
     allocateInfo.level = vk::CommandBufferLevel::ePrimary;
@@ -664,13 +637,11 @@ void Renderer::createCommandBuffer() {
 
     if (device.allocateCommandBuffers(&allocateInfo, &commandBuffer) != vk::Result::eSuccess)
         std::runtime_error("failed to create command Buffer!");
-
 }
 
 void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t imageIndex) {
-
     vk::CommandBufferBeginInfo beginInfo{};
-   
+
     if (commandBuffer.begin(&beginInfo) != vk::Result::eSuccess)
         throw std::runtime_error("failed to begin recording command buffer!");
 
@@ -694,16 +665,16 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     viewport.height = static_cast<float>(swapChainExtent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    commandBuffer.setViewport( 0, 1, &viewport);
+    commandBuffer.setViewport(0, 1, &viewport);
 
     vk::Rect2D scissor{};
     scissor.offset = vk::Offset2D{0, 0};
     scissor.extent = swapChainExtent;
 
-    commandBuffer.setScissor( 0, 1, &scissor);
+    commandBuffer.setScissor(0, 1, &scissor);
     commandBuffer.draw(3, 1, 0, 0);
     commandBuffer.endRenderPass();
-  
+
     try {
         commandBuffer.end();
     } catch (vk::SystemError err) {
@@ -712,7 +683,6 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
 }
 
 void Renderer::drawFrame() {
-
     device.waitForFences(1, &inFlightFence, VK_TRUE, UINT64_MAX);
     device.resetFences(1, &inFlightFence);
 
@@ -725,7 +695,7 @@ void Renderer::drawFrame() {
     vk::SubmitInfo submitInfo{};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &imageAvailableSemaphore;
-    vk::PipelineStageFlags waitStages {vk::PipelineStageFlagBits::eColorAttachmentOutput};
+    vk::PipelineStageFlags waitStages{vk::PipelineStageFlagBits::eColorAttachmentOutput};
     submitInfo.pWaitDstStageMask = &waitStages;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
@@ -747,7 +717,6 @@ void Renderer::drawFrame() {
 }
 
 void Renderer::createSyncObjects() {
-
     vk::SemaphoreCreateInfo semaphoreInfo{};
     vk::FenceCreateInfo fenceInfo{};
     fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;

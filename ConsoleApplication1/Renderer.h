@@ -74,7 +74,7 @@ class Renderer {
     vk::RenderPass renderPass;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline graphicsPipeline;
-    std::vector<vk::Framebuffer> swapChainFrameBuffers; 
+    std::vector<vk::Framebuffer> swapChainFrameBuffers;
     vk::CommandPool commandPool;
     vk::CommandBuffer commandBuffer;
     vk::Semaphore imageAvailableSemaphore;
@@ -85,10 +85,9 @@ class Renderer {
     void run();
 
   private:
-    // initializes the the window and vulkan lib
+    // initializes the the window and vulkan instance
     void initWindow();
     void initVulkan();
-
     void pickPhysicalDevice();
     bool checkDeviceExtensionSupport(vk::PhysicalDevice device);
     bool isDeviceSuitable(vk::PhysicalDevice device);
@@ -124,12 +123,12 @@ class Renderer {
     static std::vector<char> readFile(const std::string& fileName);
     vk::ShaderModule createShadermodule(const std::vector<char>& shaderCode);
 
-    //functions for command buffers
+    // functions for command buffers
     void createCommandPool();
     void createCommandBuffer();
     void recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t imageIndex);
 
-    //functions for drawing frames
+    // functions for drawing frames
     void drawFrame();
     void createSyncObjects();
 
