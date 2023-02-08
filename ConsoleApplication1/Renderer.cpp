@@ -26,7 +26,7 @@ void Renderer::initVulkan() {
     createGraphicsPipeline();
     createFrameBuffers();
     createCommandPool();
-    createCommandBuffer();
+    createCommandBuffers();
     createSyncObjects();
 }
 
@@ -120,23 +120,29 @@ void Renderer::cleanup() {
     device.destroyCommandPool(commandPool);
     device.destroyPipeline(graphicsPipeline);
     device.destroyPipelineLayout(pipelineLayout);
+
     for (auto& framebuffer : swapChainFrameBuffers)
 
         device.destroyFramebuffer(framebuffer);
 
     device.destroyRenderPass(renderPass);
     device.destroySwapchainKHR(swapChain);
-    for (auto& imageView : swapChainImageViews)
 
+    for (auto& imageView : swapChainImageViews)
         device.destroyImageView(imageView);
 
-    device.destroySemaphore(imageAvailableSemaphore);
-    device.destroySemaphore(finishedRenderingSemaphore);
-    device.destroyFence(inFlightFence);
+    for (size_t i{}; i < maxFramesInFlight; i++) {
+        device.destroySemaphore(imageAvailableSemaphores[i]);
+        device.destroySemaphore(finishedRenderingSemaphores[i]);
+        device.destroyFence(inFlightFences[i]);
+    }
+
     device.destroy();
     instance.destroySurfaceKHR(surface);
+
     if (enableValidationLayers)
         DestroyDebugUtilsMessengerEXT(instance, callback, nullptr);
+
     instance.destroy();
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -629,14 +635,15 @@ void Renderer::createCommandPool() {
         std::runtime_error("failed to create command Pool!");
 }
 
-void Renderer::createCommandBuffer() {
+void Renderer::createCommandBuffers() {
+    commandBuffers.resize(maxFramesInFlight);
     vk::CommandBufferAllocateInfo allocateInfo{};
     allocateInfo.commandPool = commandPool;
     allocateInfo.level = vk::CommandBufferLevel::ePrimary;
-    allocateInfo.commandBufferCount = 1;
+    allocateInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
 
-    if (device.allocateCommandBuffers(&allocateInfo, &commandBuffer) != vk::Result::eSuccess)
-        std::runtime_error("failed to create command Buffer!");
+    if (device.allocateCommandBuffers(&allocateInfo, commandBuffers.data()) != vk::Result::eSuccess)
+        throw std::runtime_error("failed to create command Buffer!");
 }
 
 void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t imageIndex) {
@@ -672,7 +679,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     scissor.extent = swapChainExtent;
 
     commandBuffer.setScissor(0, 1, &scissor);
-    commandBuffer.draw(3, 1, 0, 0);
+    commandBuffer.draw(6, 1, 0, 0);
     commandBuffer.endRenderPass();
 
     try {
@@ -683,49 +690,57 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
 }
 
 void Renderer::drawFrame() {
-    device.waitForFences(1, &inFlightFence, VK_TRUE, UINT64_MAX);
-    device.resetFences(1, &inFlightFence);
+    uint32_t currentFrame{0};
+
+    device.waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+    device.resetFences(1, &inFlightFences[currentFrame]);
 
     uint32_t imageIndex{};
-    device.acquireNextImageKHR(swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+    device.acquireNextImageKHR(swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-    commandBuffer.reset();
-    recordCommandBuffer(commandBuffer, imageIndex);
+    commandBuffers[currentFrame].reset();
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
     vk::SubmitInfo submitInfo{};
     submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &imageAvailableSemaphore;
+    submitInfo.pWaitSemaphores = &imageAvailableSemaphores[currentFrame];
     vk::PipelineStageFlags waitStages{vk::PipelineStageFlagBits::eColorAttachmentOutput};
     submitInfo.pWaitDstStageMask = &waitStages;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
+    submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &finishedRenderingSemaphore;
+    submitInfo.pSignalSemaphores = &finishedRenderingSemaphores[currentFrame];
 
-    if (graphicsQueue.submit(1, &submitInfo, inFlightFence) != vk::Result::eSuccess)
-        std::runtime_error("failed to submit command buffer!");
+    if (graphicsQueue.submit(1, &submitInfo, inFlightFences[currentFrame]) != vk::Result::eSuccess)
+        throw std::runtime_error("failed to submit command buffer!");
 
     vk::PresentInfoKHR presentInfo{};
     presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &finishedRenderingSemaphore;
+    presentInfo.pWaitSemaphores = &finishedRenderingSemaphores[currentFrame];
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &swapChain;
     presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr;
 
     presentQueue.presentKHR(&presentInfo);
+
+    currentFrame = (currentFrame + 1) % maxFramesInFlight;
 }
 
 void Renderer::createSyncObjects() {
+    imageAvailableSemaphores.resize(maxFramesInFlight);
+    finishedRenderingSemaphores.resize(maxFramesInFlight);
+    inFlightFences.resize(maxFramesInFlight);
+
     vk::SemaphoreCreateInfo semaphoreInfo{};
     vk::FenceCreateInfo fenceInfo{};
     fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
 
-    if (device.createSemaphore(&semaphoreInfo, nullptr, &imageAvailableSemaphore) != vk::Result::eSuccess)
+    if (device.createSemaphore(&semaphoreInfo, nullptr, imageAvailableSemaphores.data()) != vk::Result::eSuccess)
         throw std::runtime_error("failed to create semaphore!");
-    if (device.createSemaphore(&semaphoreInfo, nullptr, &finishedRenderingSemaphore) != vk::Result::eSuccess)
+    if (device.createSemaphore(&semaphoreInfo, nullptr, finishedRenderingSemaphores.data()) != vk::Result::eSuccess)
         throw std::runtime_error("failed to create semaphore!");
-    if (device.createFence(&fenceInfo, nullptr, &inFlightFence) != vk::Result::eSuccess)
+    if (device.createFence(&fenceInfo, nullptr, inFlightFences.data()) != vk::Result::eSuccess)
         throw std::runtime_error("failed to create semaphore!");
 }
 

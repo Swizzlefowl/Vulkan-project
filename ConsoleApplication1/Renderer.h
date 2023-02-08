@@ -1,5 +1,6 @@
 #ifndef RENDERER
 #define RENDERER
+#include <GLFW/glfw3.h>
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -12,7 +13,6 @@
 #include <string>
 #include <vector>
 #include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
 
 VkResult CreateDebugUtilsMessengerEXT(
     VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -30,7 +30,7 @@ class Renderer {
 #else
     const bool enableValidationLayers{true};
 #endif
-
+    const int maxFramesInFlight{2};
     // member var for window
     const uint32_t WIDTH{800};
     const uint32_t HEIGHT{600};
@@ -76,10 +76,10 @@ class Renderer {
     vk::Pipeline graphicsPipeline;
     std::vector<vk::Framebuffer> swapChainFrameBuffers;
     vk::CommandPool commandPool;
-    vk::CommandBuffer commandBuffer;
-    vk::Semaphore imageAvailableSemaphore;
-    vk::Semaphore finishedRenderingSemaphore;
-    vk::Fence inFlightFence;
+    std::vector<vk::CommandBuffer> commandBuffers;
+    std::vector<vk::Semaphore> imageAvailableSemaphores;
+    std::vector<vk::Semaphore> finishedRenderingSemaphores;
+    std::vector<vk::Fence> inFlightFences;
 
   public:
     void run();
@@ -125,7 +125,7 @@ class Renderer {
 
     // functions for command buffers
     void createCommandPool();
-    void createCommandBuffer();
+    void createCommandBuffers();
     void recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t imageIndex);
 
     // functions for drawing frames
