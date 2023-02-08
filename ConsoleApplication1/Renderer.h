@@ -1,6 +1,5 @@
 #ifndef RENDERER
 #define RENDERER
-#include <GLFW/glfw3.h>
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -13,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <vulkan/vulkan.hpp>
+#include <GLFW/glfw3.h>
 
 VkResult CreateDebugUtilsMessengerEXT(
     VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -116,6 +116,8 @@ class Renderer {
     void createSwapChain();
     void createImageViews();
     void createFrameBuffers();
+    void recreateSwapChain();
+    void cleanupSwapChain();
 
     // graphics pipeline functions
     void createRenderPass();

@@ -117,29 +117,18 @@ void Renderer::mainLoop() {
 }
 
 void Renderer::cleanup() {
+    cleanupSwapChain();
     device.destroyCommandPool(commandPool);
     device.destroyPipeline(graphicsPipeline);
     device.destroyPipelineLayout(pipelineLayout);
-
-    for (auto& framebuffer : swapChainFrameBuffers)
-
-        device.destroyFramebuffer(framebuffer);
-
     device.destroyRenderPass(renderPass);
-    device.destroySwapchainKHR(swapChain);
-
-    for (auto& imageView : swapChainImageViews)
-        device.destroyImageView(imageView);
-
     for (size_t i{}; i < maxFramesInFlight; i++) {
         device.destroySemaphore(imageAvailableSemaphores[i]);
         device.destroySemaphore(finishedRenderingSemaphores[i]);
         device.destroyFence(inFlightFences[i]);
     }
-
     device.destroy();
     instance.destroySurfaceKHR(surface);
-
     if (enableValidationLayers)
         DestroyDebugUtilsMessengerEXT(instance, callback, nullptr);
 
@@ -441,6 +430,22 @@ void Renderer::createFrameBuffers() {
             throw std::runtime_error("failed to create a framebuffer!");
         i++;
     }
+}
+
+void Renderer::recreateSwapChain() {
+    vkDeviceWaitIdle(device);
+
+    createSwapChain();
+    createImageViews();
+    createFrameBuffers();
+}
+
+void Renderer::cleanupSwapChain() {
+    for (auto& framebuffer : swapChainFrameBuffers)
+        device.destroyFramebuffer(framebuffer);
+    for (auto& imageView : swapChainImageViews)
+        device.destroyImageView(imageView);
+    device.destroySwapchainKHR(swapChain);
 }
 
 void Renderer::createGraphicsPipeline() {
