@@ -80,6 +80,7 @@ class Renderer {
     std::vector<vk::Semaphore> imageAvailableSemaphores;
     std::vector<vk::Semaphore> finishedRenderingSemaphores;
     std::vector<vk::Fence> inFlightFences;
+    bool framebufferResized{false};
 
   public:
     void run();
@@ -87,6 +88,7 @@ class Renderer {
   private:
     // initializes the the window and vulkan instance
     void initWindow();
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height); 
     void initVulkan();
     void pickPhysicalDevice();
     bool checkDeviceExtensionSupport(vk::PhysicalDevice device);

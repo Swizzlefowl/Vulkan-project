@@ -10,8 +10,15 @@ void Renderer::run() {
 void Renderer::initWindow() {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     window = glfwCreateWindow(WIDTH, HEIGHT, "hello Vulkan", nullptr, nullptr);
+    glfwSetWindowUserPointer(window, this);
+    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+}
+
+void Renderer::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+    auto app = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    app->framebufferResized = true;
 }
 
 void Renderer::initVulkan() {
@@ -122,6 +129,7 @@ void Renderer::cleanup() {
     device.destroyPipeline(graphicsPipeline);
     device.destroyPipelineLayout(pipelineLayout);
     device.destroyRenderPass(renderPass);
+
     for (size_t i{}; i < maxFramesInFlight; i++) {
         device.destroySemaphore(imageAvailableSemaphores[i]);
         device.destroySemaphore(finishedRenderingSemaphores[i]);
@@ -433,8 +441,15 @@ void Renderer::createFrameBuffers() {
 }
 
 void Renderer::recreateSwapChain() {
-    vkDeviceWaitIdle(device);
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
 
+    vkDeviceWaitIdle(device);
+    cleanupSwapChain();
     createSwapChain();
     createImageViews();
     createFrameBuffers();
@@ -698,10 +713,17 @@ void Renderer::drawFrame() {
     uint32_t currentFrame{0};
 
     device.waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    device.resetFences(1, &inFlightFences[currentFrame]);
 
     uint32_t imageIndex{};
-    device.acquireNextImageKHR(swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    vk::Result result = device.acquireNextImageKHR(swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+    if (result == vk::Result::eErrorOutOfDateKHR) {
+        recreateSwapChain();
+        return;
+    } else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+        throw std::runtime_error("failed to aquire an image");
+
+    device.resetFences(1, &inFlightFences[currentFrame]);
 
     commandBuffers[currentFrame].reset();
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
@@ -727,7 +749,13 @@ void Renderer::drawFrame() {
     presentInfo.pImageIndices = &imageIndex;
     presentInfo.pResults = nullptr;
 
-    presentQueue.presentKHR(&presentInfo);
+    result = presentQueue.presentKHR(&presentInfo);
+
+    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || framebufferResized) {
+        framebufferResized = false;
+        recreateSwapChain();
+    } else if (result != vk::Result::eSuccess)
+        throw std::runtime_error("failed to present swap chain image!");
 
     currentFrame = (currentFrame + 1) % maxFramesInFlight;
 }
