@@ -111,6 +111,8 @@ class Renderer {
     vk::Pipeline graphicsPipeline;
     std::vector<vk::Framebuffer> swapChainFrameBuffers;
     vk::CommandPool commandPool;
+    vk::Buffer vertexBuffer;
+    vk::DeviceMemory vertexBufferMemory;
     std::vector<vk::CommandBuffer> commandBuffers;
     std::vector<vk::Semaphore> imageAvailableSemaphores;
     std::vector<vk::Semaphore> finishedRenderingSemaphores;
@@ -162,8 +164,10 @@ class Renderer {
     static std::vector<char> readFile(const std::string& fileName);
     vk::ShaderModule createShadermodule(const std::vector<char>& shaderCode);
 
-    // functions for command buffers
+    // functions for buffers
     void createCommandPool();
+    void createVertexBuffer();
+    uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
     void createCommandBuffers();
     void recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t imageIndex);
 
