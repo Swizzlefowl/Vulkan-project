@@ -466,6 +466,8 @@ void Renderer::cleanupSwapChain() {
 void Renderer::createGraphicsPipeline() {
     auto vertShaderCode{readFile("vertex.spv")};
     auto fragShaderCode{readFile("fragment.spv")};
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
 
     vk::ShaderModule vertShaderModule{createShadermodule(vertShaderCode)};
     vk::ShaderModule fragShaderModule{createShadermodule(fragShaderCode)};
@@ -484,10 +486,10 @@ void Renderer::createGraphicsPipeline() {
         fragShaderStageInfo};
 
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = nullptr;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     vk::PipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;

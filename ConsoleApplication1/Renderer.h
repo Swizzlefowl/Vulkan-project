@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <glm/glm.hpp>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -52,6 +53,40 @@ class Renderer {
         }
     };
 
+    struct Vertex {
+        glm::vec2 pos;
+        glm::vec3 color;
+
+        static vk::VertexInputBindingDescription getBindingDescription() {
+            vk::VertexInputBindingDescription bindingDescription{};
+            bindingDescription.binding = 0;
+            bindingDescription.stride = sizeof(Vertex);
+            bindingDescription.inputRate = vk::VertexInputRate::eVertex;
+
+            return bindingDescription;
+        }
+
+        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions() {
+            std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
+            attributeDescriptions[0].binding = 0;
+            attributeDescriptions[0].location = 0;
+            attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
+            attributeDescriptions[0].offset = offsetof(Vertex, pos);
+
+            attributeDescriptions[1].binding = 0;
+            attributeDescriptions[1].location = 1;
+            attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
+            attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+            return attributeDescriptions;
+        }
+    };
+
+    const std::vector<Vertex> vertices = {
+        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+
     struct SwapChainSupportDetails {
 
         vk::SurfaceCapabilitiesKHR capabilities;
@@ -88,7 +123,7 @@ class Renderer {
   private:
     // initializes the the window and vulkan instance
     void initWindow();
-    static void framebufferResizeCallback(GLFWwindow* window, int width, int height); 
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
     void initVulkan();
     void pickPhysicalDevice();
     bool checkDeviceExtensionSupport(vk::PhysicalDevice device);
