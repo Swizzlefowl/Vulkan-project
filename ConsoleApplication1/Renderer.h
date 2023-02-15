@@ -83,9 +83,9 @@ class Renderer {
     };
 
     const std::vector<Vertex> vertices = {
-        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+        {{0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}};
 
     struct SwapChainSupportDetails {
 
@@ -166,7 +166,9 @@ class Renderer {
 
     // functions for buffers
     void createCommandPool();
+    void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
     void createVertexBuffer();
+    void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
     uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
     void createCommandBuffers();
     void recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t imageIndex);
