@@ -34,6 +34,7 @@ void Renderer::initVulkan() {
     createFrameBuffers();
     createCommandPool();
     createVertexBuffer();
+    createIndexBuffer();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -132,6 +133,8 @@ void Renderer::cleanup() {
     device.destroyRenderPass(renderPass);
     device.destroyBuffer(vertexBuffer);
     device.freeMemory(vertexBufferMemory);
+    device.destroyBuffer(indexBuffer);
+    device.freeMemory(indexBufferMemory);
 
     for (size_t i{}; i < maxFramesInFlight; i++) {
         device.destroySemaphore(imageAvailableSemaphores[i]);
@@ -710,6 +713,34 @@ void Renderer::createVertexBuffer() {
     device.freeMemory(stagingBufferMemory);
 }
 
+void Renderer::createIndexBuffer() {
+    vk::DeviceSize bufferSize{sizeof(indices[0]) * indices.size()};
+    vk::Buffer stagingBuffer{};
+    vk::DeviceMemory stagingBufferMemory{};
+
+    createBuffer(
+        bufferSize,
+        vk::BufferUsageFlagBits::eTransferSrc,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+        stagingBuffer, stagingBufferMemory);
+
+    void* data{
+        device.mapMemory(stagingBufferMemory, 0, bufferSize)};
+    memcpy(data, indices.data(), static_cast<size_t>(bufferSize));
+    device.unmapMemory(stagingBufferMemory);
+
+    createBuffer(
+        bufferSize,
+        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
+        vk::MemoryPropertyFlagBits::eDeviceLocal,
+        indexBuffer, indexBufferMemory);
+
+    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+    device.destroyBuffer(stagingBuffer);
+    device.freeMemory(stagingBufferMemory);
+}
+
 void Renderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size) {
     vk::CommandBufferAllocateInfo allocInfo{};
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
@@ -782,6 +813,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
     vk::DeviceSize offsets{0};
     commandBuffer.bindVertexBuffers(0, vertexBuffer, offsets);
+    commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint16);
 
     vk::Viewport viewport{};
     viewport.x = 0.0f;
@@ -797,7 +829,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     scissor.extent = swapChainExtent;
 
     commandBuffer.setScissor(0, 1, &scissor);
-    commandBuffer.draw(vertices.size(), 1, 0, 0);
+    commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
     commandBuffer.endRenderPass();
 
     try {

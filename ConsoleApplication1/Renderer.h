@@ -83,9 +83,13 @@ class Renderer {
     };
 
     const std::vector<Vertex> vertices = {
-        {{0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{-0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}};
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+
+    const std::vector<uint16_t> indices = {
+        0, 1, 2, 2, 3, 0};
 
     struct SwapChainSupportDetails {
 
@@ -113,6 +117,8 @@ class Renderer {
     vk::CommandPool commandPool;
     vk::Buffer vertexBuffer;
     vk::DeviceMemory vertexBufferMemory;
+    vk::Buffer indexBuffer;
+    vk::DeviceMemory indexBufferMemory;
     std::vector<vk::CommandBuffer> commandBuffers;
     std::vector<vk::Semaphore> imageAvailableSemaphores;
     std::vector<vk::Semaphore> finishedRenderingSemaphores;
@@ -168,6 +174,7 @@ class Renderer {
     void createCommandPool();
     void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
     void createVertexBuffer();
+    void createIndexBuffer();
     void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
     uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
     void createCommandBuffers();
