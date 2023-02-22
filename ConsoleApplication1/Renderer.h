@@ -4,7 +4,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <chrono>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -12,6 +15,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <random>
 #include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 
@@ -88,6 +92,18 @@ class Renderer {
         {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
         {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
 
+    const std::vector<glm::vec3> pos = {
+        {0.0f, -0.5f, 0.0}, 
+        {0.5f, 0.5f, 0.0}, 
+        {-0.5f, 0.5f, 0.0}
+         };
+
+    const std::vector<glm::vec3> color = {
+        {1.0f, 0.0f, 0.0f},
+        {0.0f, 1.0f, 0.0f},
+        {0.0f, 0.0f, 1.0f}
+    };
+        
     const std::vector<uint16_t> indices = {
         0, 1, 2, 2, 3, 0};
 
@@ -96,6 +112,12 @@ class Renderer {
         vk::SurfaceCapabilitiesKHR capabilities;
         std::vector<vk::SurfaceFormatKHR> formats;
         std::vector<vk::PresentModeKHR> presentModes;
+    };
+
+    struct UniformBufferObject {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 proj;
     };
 
     // member var for vulkan objects
@@ -111,6 +133,7 @@ class Renderer {
     vk::Extent2D swapChainExtent;
     std::vector<vk::ImageView> swapChainImageViews;
     vk::RenderPass renderPass;
+    vk::DescriptorSetLayout descriptorSetLayout; 
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline graphicsPipeline;
     std::vector<vk::Framebuffer> swapChainFrameBuffers;
@@ -119,12 +142,15 @@ class Renderer {
     vk::DeviceMemory vertexBufferMemory;
     vk::Buffer indexBuffer;
     vk::DeviceMemory indexBufferMemory;
+    std::vector<vk::Buffer> uniformBuffers;
+    std::vector<vk::DeviceMemory> uniformBuffersMemory;
+    std::vector<void*> uniformBuffersMapped;
     std::vector<vk::CommandBuffer> commandBuffers;
     std::vector<vk::Semaphore> imageAvailableSemaphores;
     std::vector<vk::Semaphore> finishedRenderingSemaphores;
     std::vector<vk::Fence> inFlightFences;
     bool framebufferResized{false};
-
+  
   public:
     void run();
 
@@ -166,6 +192,7 @@ class Renderer {
 
     // graphics pipeline functions
     void createRenderPass();
+    void createDescriptorSetLayout();
     void createGraphicsPipeline();
     static std::vector<char> readFile(const std::string& fileName);
     vk::ShaderModule createShadermodule(const std::vector<char>& shaderCode);
@@ -175,6 +202,7 @@ class Renderer {
     void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
     void createVertexBuffer();
     void createIndexBuffer();
+    void createUniformBuffers();
     void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
     uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
     void createCommandBuffers();
@@ -182,6 +210,7 @@ class Renderer {
 
     // functions for drawing frames
     void drawFrame();
+    void updateUniformBuffer(uint32_t currentImage);
     void createSyncObjects();
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL

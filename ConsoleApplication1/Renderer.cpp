@@ -129,6 +129,14 @@ void Renderer::cleanup() {
     cleanupSwapChain();
     device.destroyCommandPool(commandPool);
     device.destroyPipeline(graphicsPipeline);
+
+    for (size_t i{}; i < maxFramesInFlight; i++) {
+        device.destroyBuffer(uniformBuffers[i]);
+        device.unmapMemory(uniformBuffersMemory[i]);
+        device.freeMemory(uniformBuffersMemory[i]);
+    }
+
+    device.destroyDescriptorSetLayout(descriptorSetLayout);
     device.destroyPipelineLayout(pipelineLayout);
     device.destroyRenderPass(renderPass);
     device.destroyBuffer(vertexBuffer);
@@ -307,9 +315,7 @@ Renderer::querySwapChainSupport(vk::PhysicalDevice device) {
 
 vk::SurfaceFormatKHR Renderer::chooseSwapSurfaceFormat(
     const std::vector<vk::SurfaceFormatKHR> availableFormats) {
-
     for (const auto& availableFormat : availableFormats)
-
         if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
             return availableFormat;
     return availableFormats[0];
@@ -454,7 +460,7 @@ void Renderer::recreateSwapChain() {
         glfwWaitEvents();
     }
 
-    vkDeviceWaitIdle(device);
+    device.waitIdle();
     cleanupSwapChain();
     createSwapChain();
     createImageViews();
@@ -488,7 +494,7 @@ void Renderer::createGraphicsPipeline() {
     fragShaderStageInfo.module = fragShaderModule;
     fragShaderStageInfo.pName = "main";
 
-    vk::PipelineShaderStageCreateInfo shaderStagesInfo[]{vertShaderStageInfo,
+    std::vector<vk::PipelineShaderStageCreateInfo> shaderStagesInfo{vertShaderStageInfo,
         fragShaderStageInfo};
 
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
@@ -546,19 +552,20 @@ void Renderer::createGraphicsPipeline() {
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
+    createDescriptorSetLayout();
+
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.setLayoutCount = 0;
-    pipelineLayoutInfo.pSetLayouts = nullptr;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
     if (device.createPipelineLayout(&pipelineLayoutInfo, nullptr, &pipelineLayout) != vk::Result::eSuccess)
-
         throw std::runtime_error("failed to create pipeline layout!");
 
     vk::GraphicsPipelineCreateInfo pipelineInfo{};
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStagesInfo;
+    pipelineInfo.stageCount = shaderStagesInfo.size();
+    pipelineInfo.pStages = shaderStagesInfo.data();
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
@@ -621,6 +628,24 @@ void Renderer::createRenderPass() {
 
     if (device.createRenderPass(&renderPassInfo, nullptr, &renderPass) != vk::Result::eSuccess)
         throw std::runtime_error("failed to create a render pass object!");
+}
+
+void Renderer::createDescriptorSetLayout() {
+    vk::DescriptorSetLayoutBinding binding{};
+    vk::DescriptorSetLayoutCreateInfo createInfo{};
+
+    binding.binding = 0;
+    binding.descriptorCount = 1;
+    binding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    binding.pImmutableSamplers = nullptr;
+    binding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+    
+    createInfo.bindingCount = 1;
+    createInfo.pBindings = &binding;
+
+   if (device.createDescriptorSetLayout(&createInfo, nullptr, &descriptorSetLayout)
+        != vk::Result::eSuccess)
+        throw std::runtime_error("failed to create descriptorSetLayout");
 }
 
 std::vector<char> Renderer::readFile(const std::string& fileName) {
@@ -741,6 +766,19 @@ void Renderer::createIndexBuffer() {
     device.freeMemory(stagingBufferMemory);
 }
 
+void Renderer::createUniformBuffers() {
+    vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
+
+    uniformBuffers.resize(maxFramesInFlight);
+    uniformBuffersMemory.resize(maxFramesInFlight);
+    uniformBuffersMapped.resize(maxFramesInFlight);
+
+    for (size_t i = 0; i < maxFramesInFlight; i++) {
+        createBuffer(bufferSize, vk::BufferUsageFlagBits::eUniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, uniformBuffers[i], uniformBuffersMemory[i]);
+        uniformBuffersMapped[i] = device.mapMemory(uniformBuffersMemory[i], 0, bufferSize);
+    }
+}
+
 void Renderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size) {
     vk::CommandBufferAllocateInfo allocInfo{};
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
@@ -841,7 +879,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
 
 void Renderer::drawFrame() {
     uint32_t currentFrame{0};
-
+    
     device.waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex{};
@@ -888,6 +926,21 @@ void Renderer::drawFrame() {
         throw std::runtime_error("failed to present swap chain image!");
 
     currentFrame = (currentFrame + 1) % maxFramesInFlight;
+}
+
+void Renderer::updateUniformBuffer(uint32_t currentImage) {
+    static auto startTime = std::chrono::high_resolution_clock::now();
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+    UniformBufferObject ubo{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+    ubo.proj[1][1] *= -1;
+
+    memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+
 }
 
 void Renderer::createSyncObjects() {
