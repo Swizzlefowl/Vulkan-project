@@ -29,6 +29,10 @@ void Renderer::initVulkan() {
     createLogicalDevice();
     createSwapChain();
     createImageViews();
+    createUniformBuffers();
+    createDescriptorSetLayout();
+    createDescriptorPool();
+    createDescriptorSets();
     createRenderPass();
     createGraphicsPipeline();
     createFrameBuffers();
@@ -136,6 +140,7 @@ void Renderer::cleanup() {
         device.freeMemory(uniformBuffersMemory[i]);
     }
 
+    device.destroyDescriptorPool(descriptorPool);
     device.destroyDescriptorSetLayout(descriptorSetLayout);
     device.destroyPipelineLayout(pipelineLayout);
     device.destroyRenderPass(renderPass);
@@ -517,7 +522,7 @@ void Renderer::createGraphicsPipeline() {
     rasterizer.polygonMode = vk::PolygonMode::eFill;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = vk::CullModeFlagBits::eBack;
-    rasterizer.frontFace = vk::FrontFace::eClockwise;
+    rasterizer.frontFace = vk::FrontFace::eCounterClockwise;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;
     rasterizer.depthBiasClamp = 0.0f;
@@ -551,8 +556,6 @@ void Renderer::createGraphicsPipeline() {
     vk::PipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
-
-    createDescriptorSetLayout();
 
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.setLayoutCount = 1;
@@ -646,6 +649,53 @@ void Renderer::createDescriptorSetLayout() {
    if (device.createDescriptorSetLayout(&createInfo, nullptr, &descriptorSetLayout)
         != vk::Result::eSuccess)
         throw std::runtime_error("failed to create descriptorSetLayout");
+}
+
+void Renderer::createDescriptorPool() {
+   vk::DescriptorPoolSize poolSize{};
+   poolSize.type = vk::DescriptorType::eUniformBuffer;
+   poolSize.descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
+   
+   vk::DescriptorPoolCreateInfo poolInfo{};
+   poolInfo.poolSizeCount = 1;
+   poolInfo.pPoolSizes = &poolSize;
+   poolInfo.maxSets = static_cast<uint32_t>(maxFramesInFlight);
+
+   if (device.createDescriptorPool(&poolInfo, nullptr, &descriptorPool) != vk::Result::eSuccess)
+        throw std::runtime_error("failed to create descriptor pool!");
+}
+
+void Renderer::createDescriptorSets() {
+   std::vector<vk::DescriptorSetLayout> layouts(maxFramesInFlight, descriptorSetLayout);
+   vk::DescriptorSetAllocateInfo allocateInfo{};
+   allocateInfo.descriptorSetCount = static_cast<uint32_t>(maxFramesInFlight);
+   allocateInfo.descriptorPool = descriptorPool;
+   allocateInfo.pSetLayouts = layouts.data();
+
+   try {
+        descriptorSets = device.allocateDescriptorSets(allocateInfo);
+   }
+   catch (vk::Error& err) {
+        std::cout << err.what();
+   }
+   for (size_t i = 0; i < maxFramesInFlight; i++) {
+        vk::DescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UniformBufferObject);
+
+        vk::WriteDescriptorSet descriptorWrite{};
+        descriptorWrite.dstSet = descriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+        descriptorWrite.pImageInfo = nullptr; // Optional
+        descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+        device.updateDescriptorSets(descriptorWrite, nullptr);
+   }
 }
 
 std::vector<char> Renderer::readFile(const std::string& fileName) {
@@ -852,7 +902,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     vk::DeviceSize offsets{0};
     commandBuffer.bindVertexBuffers(0, vertexBuffer, offsets);
     commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint16);
-
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
     vk::Viewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -878,11 +928,8 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
 }
 
 void Renderer::drawFrame() {
-    uint32_t currentFrame{0};
-    
     device.waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-
-    uint32_t imageIndex{};
+        uint32_t imageIndex{};
     vk::Result result = device.acquireNextImageKHR(swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
     if (result == vk::Result::eErrorOutOfDateKHR) {
@@ -895,7 +942,7 @@ void Renderer::drawFrame() {
 
     commandBuffers[currentFrame].reset();
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
-
+    updateUniformBuffer(currentFrame);
     vk::SubmitInfo submitInfo{};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &imageAvailableSemaphores[currentFrame];
@@ -944,20 +991,21 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
 }
 
 void Renderer::createSyncObjects() {
-    imageAvailableSemaphores.resize(maxFramesInFlight);
-    finishedRenderingSemaphores.resize(maxFramesInFlight);
-    inFlightFences.resize(maxFramesInFlight);
-
     vk::SemaphoreCreateInfo semaphoreInfo{};
     vk::FenceCreateInfo fenceInfo{};
+
     fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
 
-    if (device.createSemaphore(&semaphoreInfo, nullptr, imageAvailableSemaphores.data()) != vk::Result::eSuccess)
-        throw std::runtime_error("failed to create semaphore!");
-    if (device.createSemaphore(&semaphoreInfo, nullptr, finishedRenderingSemaphores.data()) != vk::Result::eSuccess)
-        throw std::runtime_error("failed to create semaphore!");
-    if (device.createFence(&fenceInfo, nullptr, inFlightFences.data()) != vk::Result::eSuccess)
-        throw std::runtime_error("failed to create semaphore!");
+    try {
+        for (size_t i{}; i < maxFramesInFlight; i++) {
+            imageAvailableSemaphores.push_back(device.createSemaphore(semaphoreInfo));
+            finishedRenderingSemaphores.push_back(device.createSemaphore(semaphoreInfo));
+            inFlightFences.push_back(device.createFence(fenceInfo));
+        }
+    }
+    catch (vk::Error& err) {
+        throw std::runtime_error("failed to create sync objects");
+    }
 }
 
 VkBool32 VKAPI_CALL Renderer::debugCallback(

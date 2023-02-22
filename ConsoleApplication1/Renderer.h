@@ -135,6 +135,8 @@ class Renderer {
     vk::RenderPass renderPass;
     vk::DescriptorSetLayout descriptorSetLayout; 
     vk::PipelineLayout pipelineLayout;
+    vk::DescriptorPool descriptorPool;
+    std::vector<vk::DescriptorSet> descriptorSets;
     vk::Pipeline graphicsPipeline;
     std::vector<vk::Framebuffer> swapChainFrameBuffers;
     vk::CommandPool commandPool;
@@ -150,6 +152,7 @@ class Renderer {
     std::vector<vk::Semaphore> finishedRenderingSemaphores;
     std::vector<vk::Fence> inFlightFences;
     bool framebufferResized{false};
+    uint32_t currentFrame{};
   
   public:
     void run();
@@ -193,6 +196,8 @@ class Renderer {
     // graphics pipeline functions
     void createRenderPass();
     void createDescriptorSetLayout();
+    void createDescriptorPool();
+    void createDescriptorSets();
     void createGraphicsPipeline();
     static std::vector<char> readFile(const std::string& fileName);
     vk::ShaderModule createShadermodule(const std::vector<char>& shaderCode);
