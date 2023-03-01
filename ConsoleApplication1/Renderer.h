@@ -1,23 +1,6 @@
 #ifndef RENDERER
 #define RENDERER
-#include <algorithm>
-#include <cstdlib>
-#include <cstring>
-#include <fstream>
-#define GLM_FORCE_RADIANS
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <chrono>
-#include <iostream>
-#include <limits>
-#include <optional>
-#include <set>
-#include <stdexcept>
-#include <string>
-#include <vector>
-#include <random>
-#include <vulkan/vulkan.hpp>
-#include <GLFW/glfw3.h>
+#include "Common.h"
 
 VkResult CreateDebugUtilsMessengerEXT(
     VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -60,6 +43,7 @@ class Renderer {
     struct Vertex {
         glm::vec2 pos;
         glm::vec3 color;
+        glm::vec2 texCoord;
 
         static vk::VertexInputBindingDescription getBindingDescription() {
             vk::VertexInputBindingDescription bindingDescription{};
@@ -70,8 +54,8 @@ class Renderer {
             return bindingDescription;
         }
 
-        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions() {
-            std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
+        static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions() {
+            std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
             attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
@@ -82,28 +66,21 @@ class Renderer {
             attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
             attributeDescriptions[1].offset = offsetof(Vertex, color);
 
+            attributeDescriptions[2].binding = 0;
+            attributeDescriptions[2].location = 2;
+            attributeDescriptions[2].format = vk::Format::eR32G32Sfloat;
+            attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+
             return attributeDescriptions;
         }
     };
 
     const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
 
-    const std::vector<glm::vec3> pos = {
-        {0.0f, -0.5f, 0.0}, 
-        {0.5f, 0.5f, 0.0}, 
-        {-0.5f, 0.5f, 0.0}
-         };
-
-    const std::vector<glm::vec3> color = {
-        {1.0f, 0.0f, 0.0f},
-        {0.0f, 1.0f, 0.0f},
-        {0.0f, 0.0f, 1.0f}
-    };
-        
     const std::vector<uint16_t> indices = {
         0, 1, 2, 2, 3, 0};
 
@@ -133,7 +110,7 @@ class Renderer {
     vk::Extent2D swapChainExtent;
     std::vector<vk::ImageView> swapChainImageViews;
     vk::RenderPass renderPass;
-    vk::DescriptorSetLayout descriptorSetLayout; 
+    vk::DescriptorSetLayout descriptorSetLayout;
     vk::PipelineLayout pipelineLayout;
     vk::DescriptorPool descriptorPool;
     std::vector<vk::DescriptorSet> descriptorSets;
@@ -153,7 +130,11 @@ class Renderer {
     std::vector<vk::Fence> inFlightFences;
     bool framebufferResized{false};
     uint32_t currentFrame{};
-  
+    vk::Image textureImage;
+    vk::DeviceMemory textureImageMemory;
+    vk::ImageView textureImageView;
+    vk::Sampler textureSampler;
+
   public:
     void run();
 
@@ -191,6 +172,10 @@ class Renderer {
     void createImageViews();
     void createFrameBuffers();
     void recreateSwapChain();
+    void createTextureImage();
+    void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Image& image, vk::DeviceMemory& imageMemory);
+    void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
+    void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
     void cleanupSwapChain();
 
     // graphics pipeline functions
@@ -211,7 +196,12 @@ class Renderer {
     void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
     uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
     void createCommandBuffers();
+    vk::CommandBuffer beginSingleTimeCommands();
+    void endSingleTimeCommands(vk::CommandBuffer commandBuffer);
     void recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t imageIndex);
+    vk::ImageView createImageView(vk::Image image, vk::Format format);
+    void createTextureImageView();
+    void createTextureSampler();
 
     // functions for drawing frames
     void drawFrame();
