@@ -111,7 +111,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>C:\Users\Arbaz\source\repos\stb-master;C:\VulkanSDK\1.3.236.0\Include;C:\Users\Arbaz\Documents\Visual Studio 2022\libraries\glfw-3.3.8.bin.WIN64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Arbaz\source\repos\tinyobjloader-release;C:\Users\Arbaz\source\repos\stb-master;C:\VulkanSDK\1.3.236.0\Include;C:\Users\Arbaz\Documents\Visual Studio 2022\libraries\glfw-3.3.8.bin.WIN64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,7 +128,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\Arbaz\source\repos\stb-master;C:\VulkanSDK\1.3.236.0\Include;C:\Users\Arbaz\Documents\Visual Studio 2022\libraries\glfw-3.3.8.bin.WIN64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Arbaz\source\repos\tinyobjloader-release;C:\Users\Arbaz\source\repos\stb-master;C:\VulkanSDK\1.3.236.0\Include;C:\Users\Arbaz\Documents\Visual Studio 2022\libraries\glfw-3.3.8.bin.WIN64\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>

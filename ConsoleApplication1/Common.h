@@ -7,6 +7,8 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 #include <chrono>
 #include <iostream>
 #include <limits>
@@ -19,3 +21,6 @@
 #include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 #include <stb_image.h>
+#include <tiny_obj_loader.h>
+#include <unordered_map>
+

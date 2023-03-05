@@ -22,6 +22,8 @@ class Renderer {
     // member var for window
     const uint32_t WIDTH{800};
     const uint32_t HEIGHT{600};
+    const std::string MODEL_PATH{"viking_room.obj"};
+    const std::string TEXTURE_PATH {"viking_room.png"};
     GLFWwindow* window{nullptr};
 
     // validation layers
@@ -40,6 +42,7 @@ class Renderer {
         }
     };
 
+  public:
     struct Vertex {
         glm::vec3 pos;
         glm::vec3 color;
@@ -73,22 +76,14 @@ class Renderer {
 
             return attributeDescriptions;
         }
+
+        bool operator==(const Vertex& other) const {
+            return pos == other.pos && color == other.color && texCoord == other.texCoord;
+        }
     };
 
-    const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-
-        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-        {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
-
-    const std::vector<uint16_t> indices = {
-        0, 1, 2, 2, 3, 0,
-        4, 5, 6, 6, 7, 4};
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
 
     struct SwapChainSupportDetails {
 
@@ -198,6 +193,7 @@ class Renderer {
 
     // functions for buffers
     void createCommandPool();
+    void loadModel();
     void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
     void createVertexBuffer();
     void createIndexBuffer();
@@ -227,4 +223,13 @@ class Renderer {
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
         void* pUserData);
 };
+
+ namespace std {
+    template <>
+    struct hash<Renderer::Vertex> {
+        size_t operator()(Renderer::Vertex const& vertex) const {
+            return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
+        }
+    };
+}
 #endif
