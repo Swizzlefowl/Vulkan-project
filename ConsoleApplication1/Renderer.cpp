@@ -617,6 +617,11 @@ void Renderer::cleanupSwapChain() {
 }
 
 void Renderer::loadModel() {
+
+    // randomly gen data pos for instance data
+    // it will get added in the vertex shaders
+    // to the original pos of the vertex
+
     std::default_random_engine rndGenerator((unsigned)time(nullptr));
     std::uniform_real_distribution<float> uniformDist(-6.0f,6.0f);
 
@@ -642,11 +647,17 @@ void Renderer::loadModel() {
             Vertex vertex{};
 
             vertex.pos = {
+                // the 3 is here because every vertices takes 
+                // 3 elements in the vector, because its a 1D
+                // array
+                // you add the 0 or 1 to take account of the
+                // x,y,z of the vector
                 attrib.vertices[3 * index.vertex_index + 0],
                 attrib.vertices[3 * index.vertex_index + 1],
                 attrib.vertices[3 * index.vertex_index + 2]};
 
             vertex.texCoord = {
+                // same for texcoords
                 attrib.texcoords[2 * index.texcoord_index + 0],
                 attrib.texcoords[2 * index.texcoord_index + 1]};
 
@@ -665,10 +676,23 @@ void Renderer::createGraphicsPipeline() {
     auto vertShaderCode{readFile("vertex.spv")};
     auto fragShaderCode{readFile("fragment.spv")};
 
+    // every  vertex buffer needs its own binding
+    // the binding is just the index of the buffer inside an array
+    // which you will bind during draw time while recording
+    // your command buffer
+    // stride is just how much bytes the shader will jump
+    // after every invocation
+    // input rate is when the shader will take the data here its
+    // per instance
+
     vk::VertexInputBindingDescription InstanceBindingDescription{};
     InstanceBindingDescription.binding = 1;
     InstanceBindingDescription.stride = sizeof(glm::vec3);
     InstanceBindingDescription.inputRate = vk::VertexInputRate::eInstance;
+
+    // offset is wehn you have interleaved data inside
+    // your buffers, you need to get the offset of the data
+    // inside the struct
 
     vk::VertexInputAttributeDescription InstanceAttributeDescription{};
     InstanceAttributeDescription.binding = 1;
@@ -1156,6 +1180,8 @@ void Renderer::createVertexBuffer() {
 }
 
 void Renderer::createInstancedata() {
+    // remember to copy the data to the correct buffer
+
     vk::DeviceSize bufferSize{(sizeof(instances[0]) * instances.size())};
     std::cout << "buffer size is: " << bufferSize << '\n';
     vk::Buffer stagingBuffer{};
@@ -1327,9 +1353,15 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
     //commandBuffer.draw(6, 1, 0, 0);
 
+    // you need different pipelines for different shaders
+    // after binding them every other operation will refer to that pipeline
 
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
     std::vector<vk::Buffer> buffers{vertexBuffer, instanceBuffer};
+
+    // offsets are for your vertex buffers if you have your data
+    // in the same buffer you will need to give the starting offset
+    // of your second data
     std::vector<vk::DeviceSize> offsets{0, 0};
     commandBuffer.bindVertexBuffers(0, buffers, offsets);
     commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
@@ -1494,6 +1526,13 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
     static auto startTime = std::chrono::high_resolution_clock::now();
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+    // these static variables are there to just keep info
+    // from the previous frame so the image dosent get reset
+    
+    // look at sets where the camera is looking at and where the center is
+    // rotate just rotates the mesh on some axis you set
+    // perspective is the fov and some other things i dont understand
 
    static glm::mat4 oldmodel{glm::mat4(1.0f)};
    static glm::mat4 oldview = glm::lookAt(glm::vec3(3.0f, 3.0f, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
