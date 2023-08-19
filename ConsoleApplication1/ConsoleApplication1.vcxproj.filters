@@ -24,12 +24,18 @@
     <ClCompile Include="Renderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="glmCamera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="glmCamera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -49,6 +55,12 @@
       <Filter>shaders</Filter>
     </None>
     <None Include="vertex.spv">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shader2.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shader2.vert">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

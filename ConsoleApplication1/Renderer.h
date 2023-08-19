@@ -23,7 +23,7 @@ class Renderer {
     const uint32_t WIDTH{800};
     const uint32_t HEIGHT{600};
     const std::string MODEL_PATH{"viking_room.obj"};
-    const std::string TEXTURE_PATH {"viking_room.png"};
+    const std::string TEXTURE_PATH{"viking_room.png"};
     GLFWwindow* window{nullptr};
 
     // validation layers
@@ -53,7 +53,7 @@ class Renderer {
             bindingDescription.binding = 0;
             bindingDescription.stride = sizeof(Vertex);
             bindingDescription.inputRate = vk::VertexInputRate::eVertex;
-
+            
             return bindingDescription;
         }
 
@@ -82,8 +82,13 @@ class Renderer {
         }
     };
 
+    //std::vector<Vertex> vertices;
+    //std::vector<uint32_t> indices;
+
     std::vector<Vertex> vertices;
+
     std::vector<uint32_t> indices;
+    std::vector<glm::vec3> instances;
 
     struct SwapChainSupportDetails {
 
@@ -113,15 +118,19 @@ class Renderer {
     vk::RenderPass renderPass;
     vk::DescriptorSetLayout descriptorSetLayout;
     vk::PipelineLayout pipelineLayout;
+    vk::PipelineLayout pipelineLayout2;
     vk::DescriptorPool descriptorPool;
     std::vector<vk::DescriptorSet> descriptorSets;
     vk::Pipeline graphicsPipeline;
+    vk::Pipeline graphicsPipeline2;
     std::vector<vk::Framebuffer> swapChainFrameBuffers;
     vk::CommandPool commandPool;
     vk::Buffer vertexBuffer;
     vk::DeviceMemory vertexBufferMemory;
     vk::Buffer indexBuffer;
     vk::DeviceMemory indexBufferMemory;
+    vk::Buffer instanceBuffer;
+    vk::DeviceMemory instanceBufferMemory;
     std::vector<vk::Buffer> uniformBuffers;
     std::vector<vk::DeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
@@ -188,6 +197,7 @@ class Renderer {
     void createDescriptorPool();
     void createDescriptorSets();
     void createGraphicsPipeline();
+    void createGraphicsPipeline2();
     static std::vector<char> readFile(const std::string& fileName);
     vk::ShaderModule createShadermodule(const std::vector<char>& shaderCode);
 
@@ -196,6 +206,7 @@ class Renderer {
     void loadModel();
     void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
     void createVertexBuffer();
+    void createInstancedata();
     void createIndexBuffer();
     void createUniformBuffers();
     void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);

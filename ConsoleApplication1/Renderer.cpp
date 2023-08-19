@@ -33,6 +33,7 @@ void Renderer::initVulkan() {
     createDescriptorSetLayout();
     createRenderPass();
     createGraphicsPipeline();
+    createGraphicsPipeline2();
     createCommandPool();
     createDepthResources();
     createFrameBuffers();
@@ -44,6 +45,7 @@ void Renderer::initVulkan() {
     loadModel();
     createVertexBuffer();
     createIndexBuffer();
+    createInstancedata();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -142,6 +144,7 @@ void Renderer::cleanup() {
     device.freeMemory(textureImageMemory);
     device.destroyCommandPool(commandPool);
     device.destroyPipeline(graphicsPipeline);
+    device.destroyPipeline(graphicsPipeline2);
 
     for (size_t i{}; i < maxFramesInFlight; i++) {
         device.destroyBuffer(uniformBuffers[i]);
@@ -157,6 +160,8 @@ void Renderer::cleanup() {
     device.freeMemory(vertexBufferMemory);
     device.destroyBuffer(indexBuffer);
     device.freeMemory(indexBufferMemory);
+    device.destroyBuffer(instanceBuffer);
+    device.freeMemory(instanceBufferMemory);
 
     for (size_t i{}; i < maxFramesInFlight; i++) {
         device.destroySemaphore(imageAvailableSemaphores[i]);
@@ -612,6 +617,16 @@ void Renderer::cleanupSwapChain() {
 }
 
 void Renderer::loadModel() {
+    std::default_random_engine rndGenerator((unsigned)time(nullptr));
+    std::uniform_real_distribution<float> uniformDist(-6.0f,6.0f);
+
+    for (int index{ 0 }; index < 100; index++) {
+        glm::vec3 instance{};
+        instance.r = uniformDist(rndGenerator);
+        instance.g = uniformDist(rndGenerator);
+        instance.b = uniformDist(rndGenerator);
+        instances.push_back(instance);
+    }
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -621,7 +636,7 @@ void Renderer::loadModel() {
         throw std::runtime_error(warn + err);
 
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
+  
     for (const auto& shape : shapes) {
         for (const auto& index : shape.mesh.indices) {
             Vertex vertex{};
@@ -633,9 +648,9 @@ void Renderer::loadModel() {
 
             vertex.texCoord = {
                 attrib.texcoords[2 * index.texcoord_index + 0],
-                1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+                attrib.texcoords[2 * index.texcoord_index + 1]};
 
-            vertex.color = {1.0f, 1.0f, 1.0f};
+            vertex.color = {1.0f, 0.0f, 0.0f};
 
             if (uniqueVertices.count(vertex) == 0) {
                 uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
@@ -649,8 +664,28 @@ void Renderer::loadModel() {
 void Renderer::createGraphicsPipeline() {
     auto vertShaderCode{readFile("vertex.spv")};
     auto fragShaderCode{readFile("fragment.spv")};
+
+    vk::VertexInputBindingDescription InstanceBindingDescription{};
+    InstanceBindingDescription.binding = 1;
+    InstanceBindingDescription.stride = sizeof(glm::vec3);
+    InstanceBindingDescription.inputRate = vk::VertexInputRate::eInstance;
+
+    vk::VertexInputAttributeDescription InstanceAttributeDescription{};
+    InstanceAttributeDescription.binding = 1;
+    InstanceAttributeDescription.location = 3;
+    InstanceAttributeDescription.format = vk::Format::eR32G32B32Sfloat;
+    InstanceAttributeDescription.offset = 0;
+
     auto bindingDescription = Vertex::getBindingDescription();
-    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    auto attributeDescription = Vertex::getAttributeDescriptions();
+
+    static std::array<vk::VertexInputBindingDescription, 2> bindingDescriptions = {bindingDescription, InstanceBindingDescription};
+    static std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{};
+    for (auto binding : attributeDescription) {
+        attributeDescriptions.push_back(binding);
+    }
+    attributeDescriptions.push_back(InstanceAttributeDescription);
+    std::cout << "attribute size is: " << attributeDescriptions.size() << "\n";
 
     vk::ShaderModule vertShaderModule{createShadermodule(vertShaderCode)};
     vk::ShaderModule fragShaderModule{createShadermodule(fragShaderCode)};
@@ -669,15 +704,14 @@ void Renderer::createGraphicsPipeline() {
         fragShaderStageInfo};
 
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexBindingDescriptionCount = bindingDescriptions.size();
+    vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
     vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
     vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     vk::PipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
-
     vk::PipelineViewportStateCreateInfo viewportState{};
     viewportState.viewportCount = 1;
     viewportState.scissorCount = 1;
@@ -760,6 +794,128 @@ void Renderer::createGraphicsPipeline() {
 
     try {
         graphicsPipeline = device.createGraphicsPipeline(nullptr, pipelineInfo).value;
+    } catch (vk::SystemError err) {
+        throw std::runtime_error("failed to create graphics pipeline!");
+    }
+
+    device.destroyShaderModule(vertShaderModule);
+    device.destroyShaderModule(fragShaderModule);
+
+}
+
+void Renderer::createGraphicsPipeline2() {
+    auto vertShaderCode{readFile("vertex2.spv")};
+    auto fragShaderCode{readFile("fragment2.spv")};
+    //auto bindingDescription = Vertex::getBindingDescription();
+    //auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
+    vk::ShaderModule vertShaderModule{createShadermodule(vertShaderCode)};
+    vk::ShaderModule fragShaderModule{createShadermodule(fragShaderCode)};
+
+    vk::PipelineShaderStageCreateInfo vertShaderStageInfo{};
+    vertShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
+    vertShaderStageInfo.module = vertShaderModule;
+    vertShaderStageInfo.pName = "main";
+
+    vk::PipelineShaderStageCreateInfo fragShaderStageInfo{};
+    fragShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
+    fragShaderStageInfo.module = fragShaderModule;
+    fragShaderStageInfo.pName = "main";
+
+    std::vector<vk::PipelineShaderStageCreateInfo> shaderStagesInfo{vertShaderStageInfo,
+        fragShaderStageInfo};
+
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.vertexBindingDescriptionCount = 0;
+    vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
+    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+
+    vk::PipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+    vk::PipelineViewportStateCreateInfo viewportState{};
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount = 1;
+
+    vk::PipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = vk::PolygonMode::eFill;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = vk::CullModeFlagBits::eBack;
+    rasterizer.frontFace = vk::FrontFace::eCounterClockwise;
+    rasterizer.depthBiasEnable = VK_FALSE;
+    rasterizer.depthBiasConstantFactor = 0.0f;
+    rasterizer.depthBiasClamp = 0.0f;
+    rasterizer.depthBiasSlopeFactor = 0.0f;
+
+    vk::PipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = vk::SampleCountFlagBits::e1;
+    multisampling.minSampleShading = 1.0f;
+    multisampling.pSampleMask = nullptr;
+    multisampling.alphaToCoverageEnable = VK_FALSE;
+    multisampling.alphaToOneEnable = VK_FALSE;
+
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+
+    vk::PipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.logicOp = vk::LogicOp::eCopy;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+    colorBlending.blendConstants[0] = 0.0f;
+    colorBlending.blendConstants[1] = 0.0f;
+    colorBlending.blendConstants[2] = 0.0f;
+    colorBlending.blendConstants[3] = 0.0f;
+
+    std::vector<vk::DynamicState> dynamicStates{
+        vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+
+    vk::PipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+    vk::PipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthCompareOp = vk::CompareOp::eLess;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.minDepthBounds = 0.0f; // Optional
+    depthStencil.maxDepthBounds = 1.0f; // Optional
+    depthStencil.stencilTestEnable = VK_FALSE; // Optional
+
+    /* vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.setLayoutCount = 0;
+    pipelineLayoutInfo.pSetLayouts = nullptr;
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;
+
+    if (device.createPipelineLayout(&pipelineLayoutInfo, nullptr, &pipelineLayout2) != vk::Result::eSuccess)
+        throw std::runtime_error("failed to create pipeline layout!");*/
+
+    vk::GraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.stageCount = shaderStagesInfo.size();
+    pipelineInfo.pStages = shaderStagesInfo.data();
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = &depthStencil;
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = pipelineLayout;
+    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+    pipelineInfo.basePipelineIndex = -1;
+
+    try {
+        graphicsPipeline2 = device.createGraphicsPipeline(nullptr, pipelineInfo).value;
     } catch (vk::SystemError err) {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
@@ -999,6 +1155,35 @@ void Renderer::createVertexBuffer() {
     device.freeMemory(stagingBufferMemory);
 }
 
+void Renderer::createInstancedata() {
+    vk::DeviceSize bufferSize{(sizeof(instances[0]) * instances.size())};
+    std::cout << "buffer size is: " << bufferSize << '\n';
+    vk::Buffer stagingBuffer{};
+    vk::DeviceMemory stagingBufferMemory{};
+
+    createBuffer(
+        bufferSize,
+        vk::BufferUsageFlagBits::eTransferSrc,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+        stagingBuffer, stagingBufferMemory);
+
+    void* data{
+        device.mapMemory(stagingBufferMemory, 0, bufferSize)};
+    memcpy(data, instances.data(), static_cast<size_t>(bufferSize));
+    device.unmapMemory(stagingBufferMemory);
+
+    createBuffer(
+        bufferSize,
+        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+        vk::MemoryPropertyFlagBits::eDeviceLocal,
+        instanceBuffer, instanceBufferMemory);
+
+    copyBuffer(stagingBuffer, instanceBuffer, bufferSize);
+
+    device.destroyBuffer(stagingBuffer);
+    device.freeMemory(stagingBufferMemory);
+}
+
 void Renderer::createIndexBuffer() {
     vk::DeviceSize bufferSize{sizeof(indices[0]) * indices.size()};
     std::cout << indices.size() << '\n';
@@ -1117,17 +1302,13 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     renderPassInfo.renderArea.extent = swapChainExtent;
 
     std::array<vk::ClearValue, 2> clearValues{};
-    clearValues[0].color = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f};
+    clearValues[0].color = vk::ClearColorValue{0.0f, 0.0f, 1.0f, 1.0f};
     clearValues[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
 
     commandBuffer.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
-    vk::DeviceSize offsets{0};
-    commandBuffer.bindVertexBuffers(0, vertexBuffer, offsets);
-    commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
+
     vk::Viewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -1142,7 +1323,33 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     scissor.extent = swapChainExtent;
 
     commandBuffer.setScissor(0, 1, &scissor);
-    commandBuffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline2);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
+    //commandBuffer.draw(6, 1, 0, 0);
+
+
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+    std::vector<vk::Buffer> buffers{vertexBuffer, instanceBuffer};
+    std::vector<vk::DeviceSize> offsets{0, 0};
+    commandBuffer.bindVertexBuffers(0, buffers, offsets);
+    commandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSets[currentFrame], nullptr);
+    /* vk::Viewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swapChainExtent.width);
+    viewport.height = static_cast<float>(swapChainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    commandBuffer.setViewport(0, 1, &viewport);
+
+    vk::Rect2D scissor{};
+    scissor.offset = vk::Offset2D{0, 0};
+    scissor.extent = swapChainExtent;
+
+    commandBuffer.setScissor(0, 1, &scissor);*/
+    commandBuffer.drawIndexed(indices.size(), 100, 0, 0, 0);
+    //commandBuffer.draw(6, 1, 0, 0);
     commandBuffer.endRenderPass();
 
     try {
@@ -1288,9 +1495,34 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
+   static glm::mat4 oldmodel{glm::mat4(1.0f)};
+   static glm::mat4 oldview = glm::lookAt(glm::vec3(3.0f, 3.0f, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    if (glfwGetKey(window, GLFW_KEY_A)) {
+        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(20.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        oldmodel = ubo.model;
+    }
+    if (glfwGetKey(window, GLFW_KEY_D)) {
+        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(-20.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        oldmodel = ubo.model;
+    }
+    static float position{3.0};
+    //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = oldmodel;
+    //ubo.view = glm::lookAt(glm::vec3(3.0f, 3.0f, 0.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    if (glfwGetKey(window, GLFW_KEY_W)) {
+        position -= 0.0002;
+        ubo.view = glm::lookAt(glm::vec3(position, position, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        oldview = ubo.view;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_S)) {
+        position += 0.0002;
+        ubo.view = glm::lookAt(glm::vec3(position, position, 0.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        oldview = ubo.view;
+    }
+    ubo.view = oldview;
+
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
