@@ -623,13 +623,12 @@ void Renderer::loadModel() {
     // to the original pos of the vertex
 
     std::default_random_engine rndGenerator((unsigned)time(nullptr));
-    std::uniform_real_distribution<float> uniformDist(-6.0f,6.0f);
-
-    for (int index{ 0 }; index < 100; index++) {
+    std::uniform_real_distribution<float> uniformDist(-100.0f,100.0f);
+    for (int index{ 0 }; index < 1000; index++) {
         glm::vec3 instance{};
         instance.r = uniformDist(rndGenerator);
         instance.g = uniformDist(rndGenerator);
-        instance.b = uniformDist(rndGenerator);
+        instance.b = 0;
         instances.push_back(instance);
     }
     tinyobj::attrib_t attrib;
@@ -656,10 +655,10 @@ void Renderer::loadModel() {
                 attrib.vertices[3 * index.vertex_index + 1],
                 attrib.vertices[3 * index.vertex_index + 2]};
 
-            vertex.texCoord = {
+            //vertex.texCoord = {
                 // same for texcoords
-                attrib.texcoords[2 * index.texcoord_index + 0],
-                attrib.texcoords[2 * index.texcoord_index + 1]};
+                //attrib.texcoords[2 * index.texcoord_index + 0],
+                //attrib.texcoords[2 * index.texcoord_index + 1]};
 
             vertex.color = {1.0f, 0.0f, 0.0f};
 
@@ -1380,7 +1379,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     scissor.extent = swapChainExtent;
 
     commandBuffer.setScissor(0, 1, &scissor);*/
-    commandBuffer.drawIndexed(indices.size(), 100, 0, 0, 0);
+    commandBuffer.drawIndexed(indices.size(), 1000, 0, 0, 0);
     //commandBuffer.draw(6, 1, 0, 0);
     commandBuffer.endRenderPass();
 
@@ -1534,30 +1533,40 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
     // rotate just rotates the mesh on some axis you set
     // perspective is the fov and some other things i dont understand
 
+    // matrix multiplication is in reverse order
+    // so you have  to first rotate it then scale it
+    // even tho it will scale it and rotate it after
+    // at the actual transformatation
+
    static glm::mat4 oldmodel{glm::mat4(1.0f)};
+   float scale{0.8};
    static glm::mat4 oldview = glm::lookAt(glm::vec3(3.0f, 3.0f, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     UniformBufferObject ubo{};
+
     if (glfwGetKey(window, GLFW_KEY_A)) {
         ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(20.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.model = glm::scale(ubo.model, glm::vec3(scale, scale, scale));
         oldmodel = ubo.model;
     }
     if (glfwGetKey(window, GLFW_KEY_D)) {
         ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(-20.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.model = glm::scale(ubo.model, glm::vec3(scale, scale, scale));
         oldmodel = ubo.model;
     }
-    static float position{3.0};
+    static float position{10.0};
     //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.model = oldmodel;
     //ubo.view = glm::lookAt(glm::vec3(3.0f, 3.0f, 0.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     if (glfwGetKey(window, GLFW_KEY_W)) {
-        position -= 0.0002;
+        position -= 0.0004;
+        std::cout << position << '\n';
         ubo.view = glm::lookAt(glm::vec3(position, position, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         oldview = ubo.view;
     }
-
+       
     if (glfwGetKey(window, GLFW_KEY_S)) {
-        position += 0.0002;
-        ubo.view = glm::lookAt(glm::vec3(position, position, 0.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        position += 0.0004;
+        ubo.view = glm::lookAt(glm::vec3(position, position, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         oldview = ubo.view;
     }
     ubo.view = oldview;

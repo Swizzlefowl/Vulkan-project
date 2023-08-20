@@ -22,8 +22,8 @@ class Renderer {
     // member var for window
     const uint32_t WIDTH{800};
     const uint32_t HEIGHT{600};
-    const std::string MODEL_PATH{"viking_room.obj"};
-    const std::string TEXTURE_PATH{"viking_room.png"};
+    const std::string MODEL_PATH{"cube.obj"};
+    const std::string TEXTURE_PATH{"kens.jpg"};
     GLFWwindow* window{nullptr};
 
     // validation layers
