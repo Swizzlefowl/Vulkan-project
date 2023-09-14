@@ -623,12 +623,12 @@ void Renderer::loadModel() {
     // to the original pos of the vertex
 
     std::default_random_engine rndGenerator((unsigned)time(nullptr));
-    std::uniform_real_distribution<float> uniformDist(-100.0f,100.0f);
-    for (int index{ 0 }; index < 1000; index++) {
+    std::uniform_real_distribution<float> uniformDist(0.0f, 0.0f);
+    for (int index{ 0 }; index < 10; index++) {
         glm::vec3 instance{};
         instance.r = uniformDist(rndGenerator);
         instance.g = uniformDist(rndGenerator);
-        instance.b = 0;
+        instance.b = uniformDist(rndGenerator);
         instances.push_back(instance);
     }
     tinyobj::attrib_t attrib;
@@ -646,7 +646,7 @@ void Renderer::loadModel() {
             Vertex vertex{};
 
             vertex.pos = {
-                // the 3 is here because every vertices takes 
+                // the 3 is here because every vertices takes
                 // 3 elements in the vector, because its a 1D
                 // array
                 // you add the 0 or 1 to take account of the
@@ -655,13 +655,18 @@ void Renderer::loadModel() {
                 attrib.vertices[3 * index.vertex_index + 1],
                 attrib.vertices[3 * index.vertex_index + 2]};
 
-            //vertex.texCoord = {
+            vertex.texCoord = {
                 // same for texcoords
-                //attrib.texcoords[2 * index.texcoord_index + 0],
-                //attrib.texcoords[2 * index.texcoord_index + 1]};
+                attrib.texcoords[2 * index.texcoord_index + 0],
+                attrib.texcoords[2 * index.texcoord_index + 1]};
 
             vertex.color = {1.0f, 0.0f, 0.0f};
 
+            vertex.normal = {
+                attrib.normals[3 * index.normal_index + 0],
+                attrib.vertices[3 * index.normal_index + 1],
+                attrib.vertices[3 * index.normal_index + 2]};
+  
             if (uniqueVertices.count(vertex) == 0) {
                 uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
                 vertices.push_back(vertex);
@@ -695,7 +700,7 @@ void Renderer::createGraphicsPipeline() {
 
     vk::VertexInputAttributeDescription InstanceAttributeDescription{};
     InstanceAttributeDescription.binding = 1;
-    InstanceAttributeDescription.location = 3;
+    InstanceAttributeDescription.location = 4;
     InstanceAttributeDescription.format = vk::Format::eR32G32B32Sfloat;
     InstanceAttributeDescription.offset = 0;
 
@@ -1327,7 +1332,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     renderPassInfo.renderArea.extent = swapChainExtent;
 
     std::array<vk::ClearValue, 2> clearValues{};
-    clearValues[0].color = vk::ClearColorValue{0.0f, 0.0f, 1.0f, 1.0f};
+    clearValues[0].color = vk::ClearColorValue{0.0f, 0.0f, 1.0f, 0.0f};
     clearValues[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
@@ -1379,7 +1384,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     scissor.extent = swapChainExtent;
 
     commandBuffer.setScissor(0, 1, &scissor);*/
-    commandBuffer.drawIndexed(indices.size(), 1000, 0, 0, 0);
+    commandBuffer.drawIndexed(indices.size(), 1, 0, 0, 0);
     //commandBuffer.draw(6, 1, 0, 0);
     commandBuffer.endRenderPass();
 
@@ -1537,31 +1542,35 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
     // so you have  to first rotate it then scale it
     // even tho it will scale it and rotate it after
     // at the actual transformatation
-
+   
    static glm::mat4 oldmodel{glm::mat4(1.0f)};
-   float scale{0.8};
+   static bool once = true;
+
+   //float scale{0.02};
    static glm::mat4 oldview = glm::lookAt(glm::vec3(3.0f, 3.0f, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     UniformBufferObject ubo{};
 
     if (glfwGetKey(window, GLFW_KEY_A)) {
-        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(20.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.model = glm::scale(ubo.model, glm::vec3(scale, scale, scale));
+        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(180.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        //ubo.model = glm::scale(ubo.model, glm::vec3(scale, scale, scale));
         oldmodel = ubo.model;
     }
     if (glfwGetKey(window, GLFW_KEY_D)) {
-        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(-20.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.model = glm::scale(ubo.model, glm::vec3(scale, scale, scale));
+        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(-180.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        //ubo.model = glm::scale(ubo.model, glm::vec3(scale, scale, scale));
         oldmodel = ubo.model;
     }
-    static float position{10.0};
+    static float position{0};
     //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.model = oldmodel;
     //ubo.view = glm::lookAt(glm::vec3(3.0f, 3.0f, 0.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     if (glfwGetKey(window, GLFW_KEY_W)) {
-        position -= 0.0004;
-        std::cout << position << '\n';
+        position -= 0.001;
+        //ubo.model = glm::translate(ubo.model, glm::vec3(0,position,0));
+        oldmodel = ubo.model;
+        //std::cout << position << '\n';
         ubo.view = glm::lookAt(glm::vec3(position, position, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        oldview = ubo.view;
+        //oldview = ubo.view;
     }
        
     if (glfwGetKey(window, GLFW_KEY_S)) {
