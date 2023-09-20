@@ -23,7 +23,7 @@ class Renderer {
     const uint32_t WIDTH{800};
     const uint32_t HEIGHT{600};
     const std::string MODEL_PATH{"cube.obj"};
-    const std::string TEXTURE_PATH{"kens.jpg"};
+    const std::string TEXTURE_PATH{"kenny.jpg"};
     GLFWwindow* window{nullptr};
 
     // validation layers
@@ -47,6 +47,7 @@ class Renderer {
         glm::vec3 pos;
         glm::vec3 color;
         glm::vec2 texCoord;
+        glm::vec3 normal;
 
         static vk::VertexInputBindingDescription getBindingDescription() {
             vk::VertexInputBindingDescription bindingDescription{};
@@ -57,8 +58,8 @@ class Renderer {
             return bindingDescription;
         }
 
-        static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions() {
-            std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
+        static std::array<vk::VertexInputAttributeDescription, 4> getAttributeDescriptions() {
+            std::array<vk::VertexInputAttributeDescription, 4> attributeDescriptions{};
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
             attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
@@ -73,6 +74,11 @@ class Renderer {
             attributeDescriptions[2].location = 2;
             attributeDescriptions[2].format = vk::Format::eR32G32Sfloat;
             attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+
+            attributeDescriptions[3].binding = 0;
+            attributeDescriptions[3].location = 3;
+            attributeDescriptions[3].format = vk::Format::eR32G32B32Sfloat;
+            attributeDescriptions[3].offset = offsetof(Vertex, normal);
 
             return attributeDescriptions;
         }
@@ -103,6 +109,11 @@ class Renderer {
         glm::mat4 proj;
     };
 
+    struct Light {
+        glm::vec3 lightpos{0.58, 0.58, 0.58};
+    };
+
+    Light light{};
     // member var for vulkan objects
     vk::Instance instance;
     vk::PhysicalDevice physicalDevice;
@@ -131,6 +142,9 @@ class Renderer {
     vk::DeviceMemory indexBufferMemory;
     vk::Buffer instanceBuffer;
     vk::DeviceMemory instanceBufferMemory;
+    std::vector<vk::Buffer> lightBuffer;
+    std::vector<vk::DeviceMemory> lightBufferMemory;
+    std::vector<void*> lightBufferMapped{nullptr};
     std::vector<vk::Buffer> uniformBuffers;
     std::vector<vk::DeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
@@ -209,6 +223,7 @@ class Renderer {
     void createInstancedata();
     void createIndexBuffer();
     void createUniformBuffers();
+    void createLightBuffer();
     void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
     uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
     void createCommandBuffers();

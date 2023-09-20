@@ -30,6 +30,7 @@ void Renderer::initVulkan() {
     createSwapChain();
     createImageViews();
     createUniformBuffers();
+    createLightBuffer();
     createDescriptorSetLayout();
     createRenderPass();
     createGraphicsPipeline();
@@ -150,6 +151,12 @@ void Renderer::cleanup() {
         device.destroyBuffer(uniformBuffers[i]);
         device.unmapMemory(uniformBuffersMemory[i]);
         device.freeMemory(uniformBuffersMemory[i]);
+    }
+
+    for (size_t i{}; i < maxFramesInFlight; i++) {
+        device.destroyBuffer(lightBuffer[i]);
+        device.unmapMemory(lightBufferMemory[i]);
+        device.freeMemory(lightBufferMemory[i]);
     }
 
     device.destroyDescriptorPool(descriptorPool);
@@ -623,8 +630,8 @@ void Renderer::loadModel() {
     // to the original pos of the vertex
 
     std::default_random_engine rndGenerator((unsigned)time(nullptr));
-    std::uniform_real_distribution<float> uniformDist(0.0f, 0.0f);
-    for (int index{ 0 }; index < 10; index++) {
+    std::uniform_real_distribution<float> uniformDist(-20.0f, 20.0f);
+    for (int index{ 0 }; index < 1000; index++) {
         glm::vec3 instance{};
         instance.r = uniformDist(rndGenerator);
         instance.g = uniformDist(rndGenerator);
@@ -1010,6 +1017,7 @@ void Renderer::createRenderPass() {
 
 void Renderer::createDescriptorSetLayout() {
     vk::DescriptorSetLayoutBinding binding{};
+    vk::DescriptorSetLayoutBinding lightBinding{};
     vk::DescriptorSetLayoutBinding samplerBinding{};
     vk::DescriptorSetLayoutCreateInfo createInfo{};
 
@@ -1022,10 +1030,16 @@ void Renderer::createDescriptorSetLayout() {
     samplerBinding.binding = 1;
     samplerBinding.descriptorCount = 1;
     samplerBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    binding.pImmutableSamplers = nullptr;
+    samplerBinding.pImmutableSamplers = nullptr;
     samplerBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
 
-    std::array<vk::DescriptorSetLayoutBinding, 2> bindings{binding, samplerBinding};
+    lightBinding.binding = 2;
+    lightBinding.descriptorCount = 1;
+    lightBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    lightBinding.pImmutableSamplers = nullptr;
+    lightBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+
+    std::array<vk::DescriptorSetLayoutBinding, 3> bindings{binding, samplerBinding, lightBinding};
     createInfo.bindingCount = bindings.size();
     createInfo.pBindings = bindings.data();
 
@@ -1035,11 +1049,13 @@ void Renderer::createDescriptorSetLayout() {
 }
 
 void Renderer::createDescriptorPool() {
-    std::array<vk::DescriptorPoolSize, 2> poolSize{};
+    std::array<vk::DescriptorPoolSize, 3> poolSize{};
     poolSize[0].type = vk::DescriptorType::eUniformBuffer;
     poolSize[0].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
     poolSize[1].type = vk::DescriptorType::eCombinedImageSampler;
     poolSize[1].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
+    poolSize[2].type = vk::DescriptorType::eUniformBuffer;
+    poolSize[2].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
 
     vk::DescriptorPoolCreateInfo poolInfo{};
     poolInfo.poolSizeCount = poolSize.size();
@@ -1068,12 +1084,17 @@ void Renderer::createDescriptorSets() {
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(UniformBufferObject);
 
+        vk::DescriptorBufferInfo lightBufferInfo{};
+        lightBufferInfo.buffer = lightBuffer[i];
+        lightBufferInfo.offset = 0;
+        lightBufferInfo.range = sizeof(Light);
+
         vk::DescriptorImageInfo imageInfo{};
         imageInfo.imageView = textureImageView;
         imageInfo.sampler = textureSampler;
         imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 
-        std::array<vk::WriteDescriptorSet, 2> descriptorWrite{};
+        std::array<vk::WriteDescriptorSet, 3> descriptorWrite{};
         descriptorWrite[0].dstSet = descriptorSets[i];
         descriptorWrite[0].dstBinding = 0;
         descriptorWrite[0].dstArrayElement = 0;
@@ -1087,6 +1108,13 @@ void Renderer::createDescriptorSets() {
         descriptorWrite[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
         descriptorWrite[1].descriptorCount = 1;
         descriptorWrite[1].pImageInfo = &imageInfo;
+
+        descriptorWrite[2].dstSet = descriptorSets[i];
+        descriptorWrite[2].dstBinding = 2;
+        descriptorWrite[2].dstArrayElement = 0;
+        descriptorWrite[2].descriptorType = vk::DescriptorType::eUniformBuffer;
+        descriptorWrite[2].descriptorCount = 1;
+        descriptorWrite[2].pBufferInfo = &lightBufferInfo;
 
         device.updateDescriptorSets(descriptorWrite, nullptr);
     }
@@ -1256,6 +1284,19 @@ void Renderer::createUniformBuffers() {
     }
 }
 
+void Renderer::createLightBuffer() {
+    vk::DeviceSize bufferSize = sizeof(Light);
+
+    lightBuffer.resize(maxFramesInFlight);
+    lightBufferMemory.resize(maxFramesInFlight);
+    lightBufferMapped.resize(maxFramesInFlight);
+
+    for (size_t i = 0; i < maxFramesInFlight; i++) {
+        createBuffer(bufferSize, vk::BufferUsageFlagBits::eUniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, lightBuffer[i], lightBufferMemory[i]);
+        lightBufferMapped[i] = device.mapMemory(lightBufferMemory[i], 0, bufferSize);
+    }
+}
+
 void Renderer::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size) {
     vk::CommandBuffer commandBuffer{beginSingleTimeCommands()};
 
@@ -1332,7 +1373,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     renderPassInfo.renderArea.extent = swapChainExtent;
 
     std::array<vk::ClearValue, 2> clearValues{};
-    clearValues[0].color = vk::ClearColorValue{0.0f, 0.0f, 1.0f, 0.0f};
+    clearValues[0].color = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f};
     clearValues[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
@@ -1384,7 +1425,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     scissor.extent = swapChainExtent;
 
     commandBuffer.setScissor(0, 1, &scissor);*/
-    commandBuffer.drawIndexed(indices.size(), 1, 0, 0, 0);
+    commandBuffer.drawIndexed(indices.size(), 1000, 0, 0, 0);
     //commandBuffer.draw(6, 1, 0, 0);
     commandBuffer.endRenderPass();
 
@@ -1583,7 +1624,11 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
+    light.lightpos.x = 1.0f + sin(glfwGetTime()) * 2.0f;
+    light.lightpos.y = sin(glfwGetTime() / 2.0f) * 1.0f;
+
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+    memcpy(lightBufferMapped[currentImage], &light, sizeof(light));
 }
 
 void Renderer::createSyncObjects() {
