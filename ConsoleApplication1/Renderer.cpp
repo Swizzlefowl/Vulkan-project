@@ -997,9 +997,9 @@ void Renderer::createRenderPass() {
     vk::SubpassDependency depedancy{};
     depedancy.srcSubpass = VK_SUBPASS_EXTERNAL;
     depedancy.dstSubpass = 0;
-    depedancy.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests;
+    depedancy.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eAllGraphics;
     depedancy.srcAccessMask = vk::AccessFlagBits::eNone;
-    depedancy.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests;
+    depedancy.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eAllGraphics;
     depedancy.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
 
     std::array<vk::AttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
@@ -1635,8 +1635,8 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
-    light.lightpos.x = 1;
-    light.lightpos.y = 1;
+    light.lightpos.x = -1;
+    light.lightpos.y = -1;
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
     memcpy(lightBufferMapped[currentImage], &light, sizeof(light));
