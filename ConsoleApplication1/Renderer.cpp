@@ -630,7 +630,7 @@ void Renderer::loadModel() {
     // to the original pos of the vertex
 
     std::default_random_engine rndGenerator((unsigned)time(nullptr));
-    std::uniform_real_distribution<float> uniformDist(-20.0f, 20.0f);
+    std::uniform_real_distribution<float> uniformDist(0, 1);
     for (int index{ 0 }; index < 1000; index++) {
         glm::vec3 instance{};
         instance.r = uniformDist(rndGenerator);
@@ -993,7 +993,7 @@ void Renderer::createRenderPass() {
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
     subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
+    
     vk::SubpassDependency depedancy{};
     depedancy.srcSubpass = VK_SUBPASS_EXTERNAL;
     depedancy.dstSubpass = 0;
@@ -1425,7 +1425,7 @@ void Renderer::recordCommandBuffer(vk::CommandBuffer& commandBuffer, uint32_t im
     scissor.extent = swapChainExtent;
 
     commandBuffer.setScissor(0, 1, &scissor);*/
-    commandBuffer.drawIndexed(indices.size(), 1000, 0, 0, 0);
+    commandBuffer.drawIndexed(indices.size(), 1, 0, 0, 0);
     //commandBuffer.draw(6, 1, 0, 0);
     commandBuffer.endRenderPass();
 
@@ -1588,44 +1588,55 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
    static bool once = true;
 
    //float scale{0.02};
-   static glm::mat4 oldview = glm::lookAt(glm::vec3(3.0f, 3.0f, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+   //static glm::mat4 oldview = glm::lookAt(glm::vec3(3.0f, 3.0f, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     UniformBufferObject ubo{};
+    float position{0};
 
     if (glfwGetKey(window, GLFW_KEY_A)) {
-        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(180.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(180.f), glm::vec3(0.0f, 0.0f, 1.0f));
         //ubo.model = glm::scale(ubo.model, glm::vec3(scale, scale, scale));
+
+        position = 0;
+        position -= 0.0008;
+        ubo.model = glm::translate(oldmodel, glm::vec3(position, 0, 0));
         oldmodel = ubo.model;
     }
     if (glfwGetKey(window, GLFW_KEY_D)) {
-        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(-180.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(-180.f), glm::vec3(0.0f, 0.0f, 1.0f));
         //ubo.model = glm::scale(ubo.model, glm::vec3(scale, scale, scale));
+
+        position = 0;
+        position += 0.0008;
+        ubo.model = glm::translate(oldmodel, glm::vec3(position, 0, 0));
         oldmodel = ubo.model;
     }
-    static float position{0};
+    
     //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.model = oldmodel;
-    //ubo.view = glm::lookAt(glm::vec3(3.0f, 3.0f, 0.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    
     if (glfwGetKey(window, GLFW_KEY_W)) {
-        position -= 0.001;
-        //ubo.model = glm::translate(ubo.model, glm::vec3(0,position,0));
+        position = 0;
+        position -= 0.0008;
+        ubo.model = glm::translate(ubo.model, glm::vec3(0, 0, position));
         oldmodel = ubo.model;
         //std::cout << position << '\n';
-        ubo.view = glm::lookAt(glm::vec3(position, position, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        //oldview = ubo.view;
     }
        
     if (glfwGetKey(window, GLFW_KEY_S)) {
-        position += 0.0004;
-        ubo.view = glm::lookAt(glm::vec3(position, position, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        oldview = ubo.view;
+        position = 0;
+        position += 0.0008;
+        ubo.model = glm::translate(ubo.model, glm::vec3(0, 0, position));
+        oldmodel = ubo.model;
     }
-    ubo.view = oldview;
+    
+    // lookup up parameter  determines what is the up axis
+    ubo.view = glm::lookAt(glm::vec3(3.0f, 3.0f, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
-    light.lightpos.x = 1.0f + sin(glfwGetTime()) * 2.0f;
-    light.lightpos.y = sin(glfwGetTime() / 2.0f) * 1.0f;
+    light.lightpos.x = 1;
+    light.lightpos.y = 1;
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
     memcpy(lightBufferMapped[currentImage], &light, sizeof(light));
