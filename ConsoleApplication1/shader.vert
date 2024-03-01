@@ -22,7 +22,8 @@ layout(location = 3) out float vert_color;
 void main() {
     gl_Position = ubo.proj * ubo.view * ubo.model * vec4((inPosition + instance), 1.0);
     normal = mat3(transpose(inverse(ubo.view * ubo.model))) * inNormal;
-    float vertColor = max( 0.0, dot( normal, lightpos.light ) ) + 0.1;
+    vec4 newLight = ubo.proj * ubo.view * ubo.model * vec4(lightpos.light, 1.0);
+    float vertColor = max( 0.0, dot( normal, newLight.xyz ) ) + 0.1;
 
     vert_color = vertColor;
     fragColor = inColor;

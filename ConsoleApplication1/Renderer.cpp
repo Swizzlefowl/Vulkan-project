@@ -997,9 +997,9 @@ void Renderer::createRenderPass() {
     vk::SubpassDependency depedancy{};
     depedancy.srcSubpass = VK_SUBPASS_EXTERNAL;
     depedancy.dstSubpass = 0;
-    depedancy.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eAllGraphics;
-    depedancy.srcAccessMask = vk::AccessFlagBits::eNone;
-    depedancy.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eAllGraphics;
+    depedancy.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eLateFragmentTests;
+    depedancy.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+    depedancy.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests;
     depedancy.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
 
     std::array<vk::AttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
@@ -1049,13 +1049,13 @@ void Renderer::createDescriptorSetLayout() {
 }
 
 void Renderer::createDescriptorPool() {
-    std::array<vk::DescriptorPoolSize, 3> poolSize{};
+    std::array<vk::DescriptorPoolSize, 2> poolSize{};
     poolSize[0].type = vk::DescriptorType::eUniformBuffer;
-    poolSize[0].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
+    poolSize[0].descriptorCount = static_cast<uint32_t>(4);
     poolSize[1].type = vk::DescriptorType::eCombinedImageSampler;
     poolSize[1].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
-    poolSize[2].type = vk::DescriptorType::eUniformBuffer;
-    poolSize[2].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
+    //poolSize[2].type = vk::DescriptorType::eUniformBuffer;
+    //poolSize[2].descriptorCount = static_cast<uint32_t>(maxFramesInFlight);
 
     vk::DescriptorPoolCreateInfo poolInfo{};
     poolInfo.poolSizeCount = poolSize.size();
@@ -1602,7 +1602,7 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
         oldmodel = ubo.model;
     }
     if (glfwGetKey(window, GLFW_KEY_D)) {
-        //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(-180.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        //ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(-180.f), glm::vec3(1.0f, 0.0f, 0.0f));
         //ubo.model = glm::scale(ubo.model, glm::vec3(scale, scale, scale));
 
         position = 0;
@@ -1630,13 +1630,14 @@ void Renderer::updateUniformBuffer(uint32_t currentImage) {
     }
     
     // lookup up parameter  determines what is the up axis
-    ubo.view = glm::lookAt(glm::vec3(3.0f, 3.0f, 3.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    ubo.view = glm::lookAt(glm::vec3(0.0f, 3.0f, 10.0), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
-    light.lightpos.x = -1;
-    light.lightpos.y = -1;
+    light.lightpos.x = 0;
+    light.lightpos.y = 3;
+    light.lightpos.z = 5;
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
     memcpy(lightBufferMapped[currentImage], &light, sizeof(light));
